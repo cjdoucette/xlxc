@@ -1,13 +1,10 @@
-#!/usr/bin/ruby -w
-
 #
 # xlxc-create: create XIA-linux containers
 #
 # Author: Cody Doucette <doucette@bu.edu>
 #
 # This Ruby script creates and initializes a given number of IP or XIA linux
-# containers. Each container uses a separate network bridge to the host,
-# and by default creates containers running Ubuntu Saucy Salamander (13.10).
+# containers. Each container uses a separate network bridge to the host.
 #
 # This script is based on the lxc-create and lxc-ubuntu scripts written by:
 #     Daniel Lezcano <daniel.lezcano@free.fr>     (lxc-create)
@@ -21,150 +18,6 @@ require 'optparse'
 require './xlxc'
 
 
-# Ubuntu information.
-ARCH    = "amd64"
-RELEASE = "saucy"
-MIRROR  = "http://archive.ubuntu.com/ubuntu"
-
-# Paths for LXC containers and distribution caches.
-LXC_CACHE        = File.join("/var/cache/lxc", RELEASE)
-LXC_CACHE_DL     = File.join(LXC_CACHE, "partial-" + ARCH)
-LXC_CACHE_ROOTFS = File.join(LXC_CACHE, "rootfs-" + ARCH)
-
-# Paths for container files.
-CONTAINER_INTERFACES = "/etc/network/interfaces"
-CONTAINER_HOSTS = "/etc/hosts"
-
-
-# Bind mount a source file to a destination file.
-#
-def bind_mount(src, dst, isDir)
-  if isDir
-    `mkdir -p #{dst}`
-  else
-    FileUtils.touch(dst)
-  end
-  `mount --bind #{src} #{dst}`
-end
-
-# Bind mount LXC to a container.
-#
-def get_lxc(rootfs)
-  FileUtils.mkdir_p(File.join(rootfs, XLXC::LXC_DIR))
-
-  XLXC::LXC_FILES.each do |f|
-    bind_mount(f, File.join(rootfs, f), false)
-  end
-end
-
-# Flush the distribution cache and any partial download that
-# may be present.
-#
-def flush()
-  FileUtils.rm_rf(LXC_CACHE_DL)
-  FileUtils.rm_rf(LXC_CACHE_ROOTFS)
-end
-
-# Download an Ubuntu distribution using debootstrap.
-#
-def download_ubuntu()
-  print("Downloading Ubuntu #{RELEASE}... ")
-  `debootstrap --arch #{ARCH} #{RELEASE} #{LXC_CACHE_DL} #{MIRROR}`
-  if !$?.success?
-    puts("failed.")
-    flush()
-    exit
-  end
-  puts("done.")
-
-  FileUtils.mv(LXC_CACHE_DL, LXC_CACHE_ROOTFS)
-end
-
-# Install an Ubuntu container by copying the rootfs from the cache.
-#
-def install_ubuntu(container)
-  if !File.exist?(LXC_CACHE)
-    `mkdir -p #{LXC_CACHE}`
-  end
-
-  if !File.exist?(LXC_CACHE_ROOTFS)
-    flush()
-    download_ubuntu()
-  end
-
-  # Copy downloaded distribution to container and rename rootfs.
-  `cp -R #{LXC_CACHE_ROOTFS} #{container}`
-  FileUtils.mv(File.join(container, "rootfs-" + ARCH),
-               File.join(container, "rootfs"))
-end
-
-# Configure an Ubuntu container by setting up the network interfaces,
-# hosts identifiers, software, and user information.
-#
-def configure_ubuntu(name)
-  rootfs = File.join(XLXC::LXC, name, "rootfs")
-
-  # Configure network interfaces.
-  open(File.join(rootfs, CONTAINER_INTERFACES), 'w') { |f|
-    f.puts(XLXC::INTERFACES)
-  }
-
-  # Set the minimal hosts.
-  open(File.join(rootfs, CONTAINER_HOSTS), 'a') { |f|
-    f.puts("127.0.0.0   localhost\n" \
-           "127.0.1.1   #{name}")
-  }
-
-  `chroot #{rootfs} locale-gen en_US en_US.UTF-8`
-
-  # Create a user with a home directory with username ubuntu.
-  `chroot #{rootfs} useradd --create-home -s /bin/bash ubuntu`
-  # Change username:password to ubuntu:ubuntu.
-  `echo "ubuntu:ubuntu" | chroot #{rootfs} chpasswd`
-  # Add user to sudo group.
-  `chroot #{rootfs} adduser ubuntu sudo`
-end
-
-# Copy a default LXC configuration file and add configuration
-# information for it that is specific to this container, such
-# as a network interface, hardware address, and bind mounts.
-#
-def copy_configuration(name, bridge, i, stack)
-  container = File.join(XLXC::LXC, name)
-  rootfs = File.join(container, "rootfs")
-  config = File.join(container, "config")
-  fstab = File.join(container, "fstab")
-
-  unique_byte = "%02x" % i
-
-  # Set up container config file.
-  open(config, 'w') { |f|
-    f.puts(XLXC::LXC_CONFIG)
-    f.puts("lxc.network.link=#{bridge}\n"                       \
-           "lxc.network.hwaddr=00:16:3e:93:f7:#{unique_byte}\n" \
-           "lxc.network.veth.pair=veth.#{i}#{stack}\n"          \
-           "lxc.rootfs=#{rootfs}\n"                             \
-           "lxc.utsname=#{name}\n"                              \
-           "lxc.mount=#{fstab}\n"                               \
-           "lxc.arch=#{ARCH}")
-  }
-
-  # Set up container fstab file.
-  open(fstab, 'w') { |f|
-    f.puts(XLXC::FSTAB)
-  }
-
-  # Set up bind mounts.
-  if stack == "xia"
-    bind_mount(XLXC::MODULES, File.join(rootfs, XLXC::MODULES), true)
-    bind_mount(XLXC::XIP, File.join(rootfs, XLXC::XIP), false)
-    bind_mount(XLXC::LIBXIA, File.join(rootfs, XLXC::LIBXIA), false)
-    bind_mount(XLXC::XIA_DATA, File.join(rootfs, XLXC::XIA_DATA), true)
-  end
-
-  get_lxc(rootfs)
-end
-
 # Parse the command and organize the options.
 #
 def parse_opts()
@@ -176,11 +29,6 @@ def parse_opts()
     options[:num] = 1
     opts.on('-c', '--count=COUNT', 'Set number of containers') do |count|
       options[:num] = count.to_i()
-    end
-
-    options[:flush] = false
-    opts.on('-f', '--flush', 'Flush distribution cache') do
-      options[:flush] = true
     end
 
     options[:ip] = false
@@ -218,35 +66,116 @@ def check_for_errors(options)
       exit
     end
   end
+end
 
-  # Ensure that user has debootstrap program.
-  `which debootstrap`
-  if !$?.success?
-    puts("debootstrap program not found.")
-    exit
+# Bind mount a source file to a destination file.
+#
+def bind_mount(src, dst, isDir, readOnly)
+  if isDir
+    FileUtils.mkdir_p(dst)
+  else
+    FileUtils.touch(dst)
   end
+
+  `mount --rbind #{src} #{dst}`
+
+  if readOnly 
+    `mount -o remount,ro #{dst}`
+  end
+end
+
+# Copy a default LXC configuration file and add configuration
+# information for it that is specific to this container, such
+# as a network interface, hardware address, and bind mounts.
+#
+def config_lxc(name, i, stack)
+  container = File.join(XLXC::LXC, name)
+  rootfs = File.join(container, "rootfs")
+  config = File.join(container, "config")
+  fstab = File.join(container, "fstab")
+
+  # Set up container config file.
+  unique_byte = "%02x" % i
+  open(config, 'w') { |f|
+    f.puts(XLXC::LXC_CONFIG_TEMPLATE)
+    f.puts("lxc.network.link=#{name}br\n"                       \
+           "lxc.network.hwaddr=00:16:3e:93:f7:#{unique_byte}\n" \
+           "lxc.network.veth.pair=veth.#{i}#{stack}\n"          \
+           "lxc.rootfs=#{rootfs}\n"                             \
+           "lxc.utsname=#{name}\n"                              \
+           "lxc.mount=#{fstab}")
+  }
+
+  # Set up container fstab file.
+  open(fstab, 'w') { |f|
+    f.puts(XLXC::FSTAB_TEMPLATE)
+  }
+
+  # With this block commented-out, XIA containers are dual-stacked.
+  #if stack_name == "ip"
+    open(File.join(rootfs, XLXC::INTERFACES_FILE), 'w') { |f|
+      f.puts(sprintf(XLXC::INTERFACES_TEMPLATE, i))
+    }
+  #end
+end
+
+# Create container filesystem by bind mounting from host.
+#
+def create_fs(rootfs)
+  FileUtils.mkdir_p(rootfs)
+
+  # Bind mount directories from host.
+  bind_mount(XLXC::BIN, File.join(rootfs, XLXC::BIN), true, true)
+  bind_mount(XLXC::LIB64, File.join(rootfs, XLXC::LIB64), true, true)
+  bind_mount(XLXC::VAR, File.join(rootfs, XLXC::VAR), true, true)
+  bind_mount(XLXC::LIB, File.join(rootfs, XLXC::LIB), true, true)
+  bind_mount(XLXC::SBIN, File.join(rootfs, XLXC::SBIN), true, true)
+  bind_mount(XLXC::USR, File.join(rootfs, XLXC::USR), true, true)
+
+  # Bind mount (read-write) local dev to containers.
+  bind_mount(XLXC::LOCAL_DEV, File.join(rootfs, XLXC::SYSTEM_DEV), true, false)
+
+  # Copy local etc to containers.
+  FileUtils.cp_r(XLXC::ETC, rootfs)
+
+  # Create necessary directories that are initially empty.
+  FileUtils.mkdir_p(File.join(rootfs, XLXC::PROC))
+  FileUtils.mkdir_p(File.join(rootfs, XLXC::SYS))
 end
 
 # Create Linux XIA containers with the given options by
 # installing and configuring Ubuntu.
 #
 def create_containers(options)
-  num = options[:num]
+  num_containers = options[:num]
   stack_name = options[:ip] ? "ip" : "xia"
 
-  for i in 1..num
+  if stack_name == "xia" 
+    FileUtils.cp_r(XLXC::XIA, XLXC::ETC)
+  end
+
+  # Need to use cp -R here, as FileUtils.cp_r cannot handle
+  # character special files.
+  `cp -R #{XLXC::SYSTEM_DEV} #{ XLXC::LOCAL_DEV}`
+  # Reset local dev/pts directory.
+  `rm -rf #{File.join(XLXC::DEV_PTS, "*")}`
+
+  for i in 1..num_containers
     container_name = stack_name + i.to_s()
-    container_path = File.join(XLXC::LXC, container_name)
-    `mkdir -p #{container_path}`
+
+    # Create filesystem for container.
+    create_fs(File.join(XLXC::LXC, container_name, "rootfs"))
 
     # Add ethernet bridge to this container.
-    bridge = container_name + "br"
-    `brctl addbr #{bridge}`
-    `ifconfig #{bridge} promisc up`
+    `brctl addbr #{container_name}br`
+    `ifconfig #{container_name}br promisc up`
 
-    install_ubuntu(container_path)
-    configure_ubuntu(container_name)
-    copy_configuration(container_name, bridge, i, stack_name)
+    # Configure the container.
+    config_lxc(container_name, i, stack_name)
+  end
+
+  if stack_name == "xia"
+    FileUtils.rm_rf(File.join(XLXC::ETC, "xia"))
   end
 end
 
@@ -254,10 +183,5 @@ end
 if __FILE__ == $PROGRAM_NAME
   options = parse_opts()
   check_for_errors(options)
-
-  if options[:flush]
-    flush()
-  end
-
   create_containers(options)
 end

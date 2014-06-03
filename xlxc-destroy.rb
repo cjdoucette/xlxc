@@ -17,38 +17,6 @@ require 'optparse'
 require './xlxc'
 
 
-# Remove LXC from a container.
-#
-def remove_lxc(rootfs)
-  XLXC::LXC_FILES.each do |f|
-    `umount #{File.join(rootfs, f)}`
-  end
-end
-
-# Destroy all containers beginning with name and numbered
-# from first to last.
-#
-def destroy(name, first, last)
-  for j in first..last
-    container = name + j.to_s()
-    `lxc-stop -n #{container}`
-
-    rootfs = File.join(XLXC::LXC, container, "rootfs")
-
-    `umount #{File.join(rootfs, XLXC::MODULES)}`
-    `umount #{File.join(rootfs, XLXC::XIP)}`
-    `umount #{File.join(rootfs, XLXC::LIBXIA)}`
-    `umount #{File.join(rootfs, XLXC::XIA_DATA)}`
-    remove_lxc(rootfs)
-
-    # Destroy the ethernet bridge to this container.
-    `ifconfig #{container}br promisc down`
-    `lxc-destroy -n #{container}`
-    `rm -rf #{File.join(XLXC::LXC, container)}`
-    `brctl delbr #{container}br`
-  end
-end
-
 # Parse the command and organize the options.
 #
 def parse_opts()
@@ -82,6 +50,40 @@ def check_for_errors()
   if Process.uid != 0
     puts("xlxc-destroy must be run as root.")
     exit
+  end
+end
+
+# Destroy a container filesystem by removing bind mounts.
+#
+def destroy_fs(rootfs)
+  `umount -l #{File.join(rootfs, XLXC::SYSTEM_DEV)}`
+
+  `umount -l #{File.join(rootfs, XLXC::USR)}`
+  `umount -l #{File.join(rootfs, XLXC::SBIN)}`
+  `umount -l #{File.join(rootfs, XLXC::LIB)}`
+  `umount -l #{File.join(rootfs, XLXC::VAR)}`
+  `umount -l #{File.join(rootfs, XLXC::LIB64)}`
+  `umount -l #{File.join(rootfs, XLXC::BIN)}`
+end
+
+# Destroy all containers beginning with name
+# and numbered from first to last.
+#
+def destroy(name, first, last)
+  for j in first..last
+    container = name + j.to_s()
+
+    # Stop the container if it is still running.
+    `lxc-stop -n #{container}`
+
+    # Destroy the ethernet bridge to this container.
+    `ifconfig #{container}br promisc down`
+    `brctl delbr #{container}br`
+
+    rootfs = File.join(XLXC::LXC, container, "rootfs")
+    destroy_fs(rootfs)
+
+    FileUtils.rm_rf(File.join(XLXC::LXC, container))
   end
 end
 

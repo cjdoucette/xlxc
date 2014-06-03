@@ -7,68 +7,101 @@
 
 class XLXC
 
-  LXC_FILES = [
-    "/usr/lib/x86_64-linux-gnu/lxc/lxc-init",
-    "/usr/lib/x86_64-linux-gnu/libseccomp.so.1",
-    "/usr/lib/libapparmor.so.1",
-    "/lib/x86_64-linux-gnu/libcap.so.2",
-    "/usr/lib/x86_64-linux-gnu/liblxc.so.1"
-  ]
+  # Directories that are bind mounted from the host.
+  BIN   = "/bin"
+  LIB64 = "/lib64"
+  VAR   = "/var"
+  LIB   = "/lib"
+  SBIN  = "/sbin"
+  USR   = "/usr"
 
-  LXC_DIR  = "/usr/lib/x86_64-linux-gnu/lxc"
-  KERNEL   = `uname -r`.delete("\n")
-  LXC      = "/var/lib/lxc"
-  MODULES  = "/lib/modules/#{KERNEL}"
-  XIP      = "/sbin/xip"
-  LIBXIA   = "/usr/lib/libxia.so.0"
-  XIA_DATA = "/etc/xia"
+  # In order to have access to special character and block files,
+  # we copy the host's /dev directory to a local copy and then
+  # bind mount that local copy to the containers.
+  SYSTEM_DEV = "/dev"
+  LOCAL_DEV = "./dev"
+  DEV_PTS = File.join(LOCAL_DEV, "pts")
 
-  FSTAB =      "proc         proc         proc  nodev,noexec,nosuid 0 0\n" \
-               "sysfs        sys          sysfs defaults 0 0\n"
+  # Location of a local etc, since parts must be unique for each container.
+  ETC = "./etc"
 
-  INTERFACES = "auto lo\n"                \
-               "iface lo inet loopback\n" \
-               "\n"                       \
-               "auto eth0\n"              \
-               "iface eth0 inet dhcp\n"   \
+  # Directories that are initially empty, but need to be created.
+  PROC = "/proc"
+  SYS  = "/sys"
 
-  LXC_CONFIG = "lxc.network.type=veth\n"                          \
-               "lxc.network.flags=up\n"                           \
-               "\n"                                               \
-               "lxc.devttydir=lxc\n"                              \
-               "lxc.tty=4\n"                                      \
-               "lxc.pts=1024\n"                                   \
-               "lxc.cap.drop=sys_module mac_admin mac_override\n" \
-               "lxc.pivotdir=lxc_putold\n"                        \
-               "\n"                                               \
-               "lxc.cgroup.devices.deny = a\n"                    \
-               "\n"                                               \
-               "# Allow any mknod (but not using the node)\n"     \
-               "lxc.cgroup.devices.allow = c *:* m\n"             \
-               "lxc.cgroup.devices.allow = b *:* m\n"             \
-               "# /dev/null and zero\n"                           \
-               "lxc.cgroup.devices.allow = c 1:3 rwm\n"           \
-               "lxc.cgroup.devices.allow = c 1:5 rwm\n"           \
-               "# consoles\n"                                     \
-               "lxc.cgroup.devices.allow = c 5:1 rwm\n"           \
-               "lxc.cgroup.devices.allow = c 5:0 rwm\n"           \
-               "#lxc.cgroup.devices.allow = c 4:0 rwm\n"          \
-               "#lxc.cgroup.devices.allow = c 4:1 rwm\n"          \
-               "# /dev/{,u}random\n"                              \
-               "lxc.cgroup.devices.allow = c 1:9 rwm\n"           \
-               "lxc.cgroup.devices.allow = c 1:8 rwm\n"           \
-               "lxc.cgroup.devices.allow = c 136:* rwm\n"         \
-               "lxc.cgroup.devices.allow = c 5:2 rwm\n"           \
-               "# rtc\n"                                          \
-               "lxc.cgroup.devices.allow = c 254:0 rwm\n"         \
-               "#fuse\n"                                          \
-               "lxc.cgroup.devices.allow = c 10:229 rwm\n"        \
-               "#tun\n"                                           \
-               "lxc.cgroup.devices.allow = c 10:200 rwm\n"        \
-               "#full\n"                                          \
-               "lxc.cgroup.devices.allow = c 1:7 rwm\n"           \
-               "#hpet\n"                                          \
-               "lxc.cgroup.devices.allow = c 10:228 rwm\n"        \
-               "#kvm\n"                                           \
-               "lxc.cgroup.devices.allow = c 10:232 rwm\n"        \
+  # File that holds interface information.
+  INTERFACES_FILE = "/etc/network/interfaces"
+
+  # Directory that holds XIA-related data.
+  XIA = "/etc/xia"
+
+  # Directory where containers are kept on host.
+  LXC = "/var/lib/lxc"
+
+  # Default configuration data for each LXC container. More
+  # configuration data is appended in xlxc-create.
+  LXC_CONFIG_TEMPLATE =
+"lxc.network.type=veth
+lxc.network.flags=up
+
+lxc.devttydir=lxc
+lxc.tty=4
+lxc.pts=1024
+lxc.cap.drop=sys_module mac_admin mac_override
+lxc.pivotdir=lxc_putold
+
+lxc.cgroup.devices.deny = a
+
+# Allow any mknod (but not using the node)
+lxc.cgroup.devices.allow = c *:* m
+lxc.cgroup.devices.allow = b *:* m
+# /dev/null and zero
+lxc.cgroup.devices.allow = c 1:3 rwm
+lxc.cgroup.devices.allow = c 1:5 rwm
+# consoles
+lxc.cgroup.devices.allow = c 5:1 rwm
+lxc.cgroup.devices.allow = c 5:0 rwm
+#lxc.cgroup.devices.allow = c 4:0 rwm
+#lxc.cgroup.devices.allow = c 4:1 rwm
+# /dev/{,u}random
+lxc.cgroup.devices.allow = c 1:9 rwm
+lxc.cgroup.devices.allow = c 1:8 rwm
+lxc.cgroup.devices.allow = c 136:* rwm
+lxc.cgroup.devices.allow = c 5:2 rwm
+# rtc
+lxc.cgroup.devices.allow = c 254:0 rwm
+#fuse
+lxc.cgroup.devices.allow = c 10:229 rwm
+#tun
+lxc.cgroup.devices.allow = c 10:200 rwm
+#full
+lxc.cgroup.devices.allow = c 1:7 rwm
+#hpet
+lxc.cgroup.devices.allow = c 10:228 rwm
+#kvm
+lxc.cgroup.devices.allow = c 10:232 rwm
+lxc.arch=amd64
+"
+
+  # Data to be entered into each container's fstab file.
+  FSTAB_TEMPLATE =
+"proc         proc         proc  nodev,noexec,nosuid 0 0
+sysfs        sys          sysfs defaults 0 0
+"
+
+  # Interface file with a format tag to make each
+  # container's IP address unique.
+  INTERFACES_TEMPLATE =
+"auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+address 192.168.1.%d
+netmask 255.255.255.0
+network 192.168.1.0
+broadcast 192.168.1.255
+gateway 192.168.1.1
+"
+
 end
