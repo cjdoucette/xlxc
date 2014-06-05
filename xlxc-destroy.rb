@@ -74,7 +74,7 @@ def destroy(name, first, last)
     container = name + j.to_s()
 
     # Stop the container if it is still running.
-    `lxc-stop -n #{container}`
+    `lxc-stop -n #{container} --kill`
 
     # Destroy the ethernet bridge to this container.
     `ifconfig #{container}br promisc down`
