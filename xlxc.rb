@@ -33,7 +33,8 @@ class XLXC
   INTERFACES_FILE = "/etc/network/interfaces"
 
   # Directory that holds XIA-related data.
-  XIA = "/etc/xia"
+  XIA      = "/etc/xia"
+  XIA_HIDS = File.join(XIA, "hid/prv")
 
   # Directory where containers are kept on host.
   LXC = "/var/lib/lxc"

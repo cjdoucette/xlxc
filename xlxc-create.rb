@@ -35,6 +35,11 @@ def parse_opts()
     opts.on('-i', '--ip', 'Create containers with IP stack only') do |name|
       options[:ip] = true
     end
+
+    options[:script] = false
+    opts.on('-s', '--script', 'Create a script for each container') do |name|
+      options[:script] = true
+    end
   end
 
   optparse.parse!
@@ -143,6 +148,22 @@ def create_fs(rootfs)
   FileUtils.mkdir_p(File.join(rootfs, XLXC::SYS))
 end
 
+# Creates and installs a script into each container.
+#
+def create_script(container_name)
+  script = File.join(XLXC::LXC, container_name, "rootfs", "run.sh")
+  open(script, 'w') { |f|
+    f.puts("# Add HID for this container.")
+    if !File.file?(File.join(XLXC::XIA_HIDS, container_name))
+      f.puts("sudo xip hid new #{container_name}")
+    end
+    f.puts("sudo xip hid add #{container_name}")
+    f.puts("# Keep container running.")
+    f.puts("cat")
+  }
+  `chmod +x #{script}`
+end
+  
 # Create Linux XIA containers with the given options by
 # installing and configuring Ubuntu.
 #
@@ -172,6 +193,10 @@ def create_containers(options)
 
     # Configure the container.
     config_lxc(container_name, i, stack_name)
+
+    if options[:script]
+      create_script(container_name)
+    end
   end
 
   if stack_name == "xia"
