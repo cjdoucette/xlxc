@@ -7,7 +7,10 @@
 
 class XLXC
 
-  # Directories that are bind mounted from the host.
+  # Directory where containers are kept on host.
+  LXC = "/var/lib/lxc"
+
+  # Directories that are bind mounted (read-only) from the host.
   BIN   = "/bin"
   LIB64 = "/lib64"
   VAR   = "/var"
@@ -19,25 +22,6 @@ class XLXC
   # we copy the host's /dev directory to a local copy and then
   # bind mount that local copy to the containers.
   SYSTEM_DEV = "/dev"
-  LOCAL_DEV = "./dev"
-  DEV_PTS = File.join(LOCAL_DEV, "pts")
-
-  # Location of a local etc, since parts must be unique for each container.
-  ETC = "./etc"
-
-  # Directories that are initially empty, but need to be created.
-  PROC = "/proc"
-  SYS  = "/sys"
-
-  # File that holds interface information.
-  INTERFACES_FILE = "/etc/network/interfaces"
-
-  # Directory that holds XIA-related data.
-  XIA      = "/etc/xia"
-  XIA_HIDS = File.join(XIA, "hid/prv")
-
-  # Directory where containers are kept on host.
-  LXC = "/var/lib/lxc"
 
   # Default configuration data for each LXC container. More
   # configuration data is appended in xlxc-create.
@@ -90,6 +74,9 @@ lxc.arch=amd64
 sysfs        sys          sysfs defaults 0 0
 "
 
+  # File that holds interface information.
+  INTERFACES_FILE = "/etc/network/interfaces"
+
   # Interface file with a format tag to make each
   # container's IP address unique.
   INTERFACES_TEMPLATE =
@@ -98,11 +85,11 @@ iface lo inet loopback
 
 auto eth0
 iface eth0 inet static
-address 192.168.1.%d
+address 192.168.0.%d
 netmask 255.255.255.0
-network 192.168.1.0
-broadcast 192.168.1.255
-gateway 192.168.1.1
+network 192.168.0.0
+broadcast 192.168.0.255
+gateway 192.168.0.1
 "
 
 end

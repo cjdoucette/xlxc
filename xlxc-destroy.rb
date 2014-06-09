@@ -82,8 +82,11 @@ def destroy(name, first, last)
 
     rootfs = File.join(XLXC::LXC, container, "rootfs")
     destroy_fs(rootfs)
+  end
 
-    FileUtils.rm_rf(File.join(XLXC::LXC, container))
+  for j in first..last
+    container = name + j.to_s()
+    `rm -rf #{File.join(XLXC::LXC, container)}`
   end
 end
 

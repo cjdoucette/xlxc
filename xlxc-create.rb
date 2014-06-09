@@ -18,6 +18,21 @@ require 'optparse'
 require './xlxc'
 
 
+# Directories that need to be directly copied (etc) or
+# bind mounted (read-write) (dev) from the host.
+LOCAL_ETC = "./etc"
+LOCAL_DEV = "./dev"
+DEV_PTS   = File.join(LOCAL_DEV, "pts")
+
+# Directories that are initially empty, but need to be created.
+PROC      = "/proc"
+SYS       = "/sys"
+
+# Directories that hold XIA-related data.
+XIA       = "/etc/xia"
+XIA_HIDS  = File.join(XIA, "hid/prv")
+
+
 # Parse the command and organize the options.
 #
 def parse_opts()
@@ -100,11 +115,9 @@ def config_lxc(name, i, stack)
   fstab = File.join(container, "fstab")
 
   # Set up container config file.
-  unique_byte = "%02x" % i
   open(config, 'w') { |f|
     f.puts(XLXC::LXC_CONFIG_TEMPLATE)
     f.puts("lxc.network.link=#{name}br\n"                       \
-           "lxc.network.hwaddr=00:16:3e:93:f7:#{unique_byte}\n" \
            "lxc.network.veth.pair=veth.#{i}#{stack}\n"          \
            "lxc.rootfs=#{rootfs}\n"                             \
            "lxc.utsname=#{name}\n"                              \
@@ -116,12 +129,10 @@ def config_lxc(name, i, stack)
     f.puts(XLXC::FSTAB_TEMPLATE)
   }
 
-  # With this block commented-out, XIA containers are dual-stacked.
-  #if stack_name == "ip"
-    open(File.join(rootfs, XLXC::INTERFACES_FILE), 'w') { |f|
-      f.puts(sprintf(XLXC::INTERFACES_TEMPLATE, i))
-    }
-  #end
+  # Set up container interfaces file (bypass DHCP).
+  open(File.join(rootfs, XLXC::INTERFACES_FILE), 'w') { |f|
+    f.puts(sprintf(XLXC::INTERFACES_TEMPLATE, i + 1))
+  }
 end
 
 # Create container filesystem by bind mounting from host.
@@ -129,7 +140,7 @@ end
 def create_fs(rootfs)
   FileUtils.mkdir_p(rootfs)
 
-  # Bind mount directories from host.
+  # Bind mount (read-only) directories from host.
   bind_mount(XLXC::BIN, File.join(rootfs, XLXC::BIN), true, true)
   bind_mount(XLXC::LIB64, File.join(rootfs, XLXC::LIB64), true, true)
   bind_mount(XLXC::VAR, File.join(rootfs, XLXC::VAR), true, true)
@@ -138,14 +149,13 @@ def create_fs(rootfs)
   bind_mount(XLXC::USR, File.join(rootfs, XLXC::USR), true, true)
 
   # Bind mount (read-write) local dev to containers.
-  bind_mount(XLXC::LOCAL_DEV, File.join(rootfs, XLXC::SYSTEM_DEV), true, false)
-
+  bind_mount(LOCAL_DEV, File.join(rootfs, XLXC::SYSTEM_DEV), true, false)
   # Copy local etc to containers.
-  FileUtils.cp_r(XLXC::ETC, rootfs)
+  `cp -R #{LOCAL_ETC} #{rootfs}`
 
   # Create necessary directories that are initially empty.
-  FileUtils.mkdir_p(File.join(rootfs, XLXC::PROC))
-  FileUtils.mkdir_p(File.join(rootfs, XLXC::SYS))
+  FileUtils.mkdir_p(File.join(rootfs, PROC))
+  FileUtils.mkdir_p(File.join(rootfs, SYS))
 end
 
 # Creates and installs a script into each container.
@@ -154,7 +164,7 @@ def create_script(container_name)
   script = File.join(XLXC::LXC, container_name, "rootfs", "run.sh")
   open(script, 'w') { |f|
     f.puts("# Add HID for this container.")
-    if !File.file?(File.join(XLXC::XIA_HIDS, container_name))
+    if !File.file?(File.join(XIA_HIDS, container_name))
       f.puts("sudo xip hid new #{container_name}")
     end
     f.puts("sudo xip hid add #{container_name}")
@@ -171,15 +181,13 @@ def create_containers(options)
   num_containers = options[:num]
   stack_name = options[:ip] ? "ip" : "xia"
 
+  # Set up local etc and dev directories.
   if stack_name == "xia" 
-    FileUtils.cp_r(XLXC::XIA, XLXC::ETC)
+    `cp -R #{XIA} #{LOCAL_ETC}`
   end
-
-  # Need to use cp -R here, as FileUtils.cp_r cannot handle
-  # character special files.
-  `cp -R #{XLXC::SYSTEM_DEV} #{ XLXC::LOCAL_DEV}`
-  # Reset local dev/pts directory.
-  `rm -rf #{File.join(XLXC::DEV_PTS, "*")}`
+  `rm -rf #{LOCAL_DEV}`
+  `cp -R #{XLXC::SYSTEM_DEV} #{LOCAL_DEV}`
+  `rm -rf #{File.join(DEV_PTS, "*")}`
 
   for i in 1..num_containers
     container_name = stack_name + i.to_s()
@@ -189,6 +197,7 @@ def create_containers(options)
 
     # Add ethernet bridge to this container.
     `brctl addbr #{container_name}br`
+    `ifconfig #{container_name}br hw ether 00:00:00:00:00:#{"%02x" % i}`
     `ifconfig #{container_name}br promisc up`
 
     # Configure the container.
@@ -200,7 +209,7 @@ def create_containers(options)
   end
 
   if stack_name == "xia"
-    FileUtils.rm_rf(File.join(XLXC::ETC, "xia"))
+    `rm -rf #{File.join(LOCAL_ETC, "xia")}`
   end
 end
 
