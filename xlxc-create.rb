@@ -141,7 +141,6 @@ def create_fs(rootfs)
   # Bind mount (read-only) directories from host.
   bind_mount(XLXC::BIN, File.join(rootfs, XLXC::BIN), true, true)
   bind_mount(XLXC::LIB64, File.join(rootfs, XLXC::LIB64), true, true)
-  bind_mount(XLXC::VAR, File.join(rootfs, XLXC::VAR), true, true)
   bind_mount(XLXC::LIB, File.join(rootfs, XLXC::LIB), true, true)
   bind_mount(XLXC::SBIN, File.join(rootfs, XLXC::SBIN), true, true)
   bind_mount(XLXC::USR, File.join(rootfs, XLXC::USR), true, true)

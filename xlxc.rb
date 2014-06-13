@@ -13,7 +13,6 @@ class XLXC
   # Directories that are bind mounted (read-only) from the host.
   BIN   = "/bin"
   LIB64 = "/lib64"
-  VAR   = "/var"
   LIB   = "/lib"
   SBIN  = "/sbin"
   USR   = "/usr"

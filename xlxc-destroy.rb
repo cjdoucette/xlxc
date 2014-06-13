@@ -59,7 +59,6 @@ def destroy_fs(rootfs)
   `umount -l #{File.join(rootfs, XLXC::USR)}`
   `umount -l #{File.join(rootfs, XLXC::SBIN)}`
   `umount -l #{File.join(rootfs, XLXC::LIB)}`
-  `umount -l #{File.join(rootfs, XLXC::VAR)}`
   `umount -l #{File.join(rootfs, XLXC::LIB64)}`
   `umount -l #{File.join(rootfs, XLXC::BIN)}`
 end
