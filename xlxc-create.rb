@@ -155,6 +155,8 @@ def create_fs(rootfs)
   # Create necessary directories that are initially empty.
   FileUtils.mkdir_p(File.join(rootfs, PROC))
   FileUtils.mkdir_p(File.join(rootfs, SYS))
+
+  `chroot #{rootfs} passwd -d root`
 end
 
 # Creates and installs a script into each container.
