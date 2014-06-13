@@ -56,8 +56,6 @@ end
 # Destroy a container filesystem by removing bind mounts.
 #
 def destroy_fs(rootfs)
-  `umount -l #{File.join(rootfs, XLXC::SYSTEM_DEV)}`
-
   `umount -l #{File.join(rootfs, XLXC::USR)}`
   `umount -l #{File.join(rootfs, XLXC::SBIN)}`
   `umount -l #{File.join(rootfs, XLXC::LIB)}`

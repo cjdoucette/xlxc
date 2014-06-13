@@ -18,15 +18,13 @@ require 'optparse'
 require './xlxc'
 
 
-# Directories that need to be directly copied (etc) or
-# bind mounted (read-write) (dev) from the host.
+# Directories that need to be directly copied (etc).
 LOCAL_ETC = "./etc"
-LOCAL_DEV = "./dev"
-DEV_PTS   = File.join(LOCAL_DEV, "pts")
 
 # Directories that are initially empty, but need to be created.
 PROC      = "/proc"
 SYS       = "/sys"
+DEV_PTS   = "/dev/pts"
 
 # Directories that hold XIA-related data.
 XIA       = "/etc/xia"
@@ -148,8 +146,9 @@ def create_fs(rootfs)
   bind_mount(XLXC::SBIN, File.join(rootfs, XLXC::SBIN), true, true)
   bind_mount(XLXC::USR, File.join(rootfs, XLXC::USR), true, true)
 
-  # Bind mount (read-write) local dev to containers.
-  bind_mount(LOCAL_DEV, File.join(rootfs, XLXC::SYSTEM_DEV), true, false)
+  # Only the pts directory needs to be in dev to start.
+  FileUtils.mkdir_p(File.join(rootfs, DEV_PTS))
+
   # Copy local etc to containers.
   `cp -R #{LOCAL_ETC} #{rootfs}`
 
@@ -185,9 +184,6 @@ def create_containers(options)
   if stack_name == "xia" 
     `cp -R #{XIA} #{LOCAL_ETC}`
   end
-  `rm -rf #{LOCAL_DEV}`
-  `cp -R #{XLXC::SYSTEM_DEV} #{LOCAL_DEV}`
-  `rm -rf #{File.join(DEV_PTS, "*")}`
 
   for i in 1..num_containers
     container_name = stack_name + i.to_s()

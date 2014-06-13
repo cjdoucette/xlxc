@@ -18,11 +18,6 @@ class XLXC
   SBIN  = "/sbin"
   USR   = "/usr"
 
-  # In order to have access to special character and block files,
-  # we copy the host's /dev directory to a local copy and then
-  # bind mount that local copy to the containers.
-  SYSTEM_DEV = "/dev"
-
   # Default configuration data for each LXC container. More
   # configuration data is appended in xlxc-create.
   LXC_CONFIG_TEMPLATE =
