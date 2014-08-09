@@ -40,7 +40,12 @@ def parse_opts()
 
   optparse = OptionParser.new do |opts|
     opts.banner = "Usage: ruby xlxc-create.rb NAME START_INDEX END_INDEX \
-                   [--script]"
+                   [--reset] [--script]"
+
+    options[:reset] = false
+    opts.on('-r', '--reset', 'Reset containers by adding bridges') do |name|
+      options[:reset] = true
+    end
 
     options[:script] = false
     opts.on('-s', '--script', 'Create a script for each container') do |name|
@@ -54,9 +59,10 @@ end
 
 # Perform error checks on the parameters of the script and options
 #
-def check_for_errors(name, first, last)
+def check_for_errors(name, first, last, options)
   if ARGV.length != 3
-    puts("Usage: ruby xlxc-create.rb NAME START_INDEX END_INDEX [--script]")
+    puts("Usage: ruby xlxc-create.rb NAME START_INDEX END_INDEX \
+    [--reset] [--script]")
     exit
   end
 
@@ -81,7 +87,10 @@ def check_for_errors(name, first, last)
   # Check that there are no conflicts in container names.
   for i in first..last
     container = File.join(XLXC::LXC, name + i.to_s())
-    if File.exist?(container)
+    if options[:reset] && !File.exist?(container)
+      puts("Container #{container} does not exist.")
+    end
+    if !options[:reset] && File.exist?(container)
       puts("Naming conflict: container #{container} " +
            "already exists in #{XLXC::LXC}.")
       exit
@@ -147,17 +156,24 @@ def config_lxc(name, i)
 
 end
 
-# Create container filesystem by bind mounting from host.
+# Perform bind mounts necessary to run container.
 #
-def create_fs(rootfs)
-  FileUtils.mkdir_p(rootfs)
-
+def do_bind_mounts(rootfs)
   # Bind mount (read-only) directories from host.
   bind_mount(XLXC::BIN, File.join(rootfs, XLXC::BIN), true, true)
   bind_mount(XLXC::LIB64, File.join(rootfs, XLXC::LIB64), true, true)
   bind_mount(XLXC::LIB, File.join(rootfs, XLXC::LIB), true, true)
   bind_mount(XLXC::SBIN, File.join(rootfs, XLXC::SBIN), true, true)
   bind_mount(XLXC::USR, File.join(rootfs, XLXC::USR), true, true)
+end
+
+# Create container filesystem by bind mounting from host.
+#
+def create_fs(rootfs)
+  FileUtils.mkdir_p(rootfs)
+
+  # Bind mount (read-only) directories from host.
+  do_bind_mounts(rootfs)
 
   # Only the pts directory needs to be in dev to start.
   FileUtils.mkdir_p(File.join(rootfs, DEV_PTS))
@@ -189,7 +205,26 @@ def create_script(container_name)
   }
   `chmod +x #{script}`
 end
-  
+
+# Configure the ethernet bridge to a container.
+#
+def config_bridge(name, i)
+  container_name = name + i.to_s()
+  `brctl addbr #{container_name}br`
+  `ifconfig #{container_name}br hw ether 00:00:00:00:00:#{"%02x" % i}`
+  `ifconfig #{container_name}br promisc up`
+end
+
+# Re-add the ethernet bridges for containers that
+# have previously been created.
+#
+def reset_containers(name, first, last)
+  for i in first..last
+    config_bridge(name, i)
+    do_bind_mounts(File.join(XLXC::LXC, name + i.to_s(), "rootfs"))
+  end
+end
+
 # Create Linux XIA containers with the given options by
 # installing and configuring Ubuntu.
 #
@@ -204,9 +239,7 @@ def create_containers(name, first, last, options)
     create_fs(File.join(XLXC::LXC, container_name, "rootfs"))
 
     # Add ethernet bridge to this container.
-    `brctl addbr #{container_name}br`
-    `ifconfig #{container_name}br hw ether 00:00:00:00:00:#{"%02x" % i}`
-    `ifconfig #{container_name}br promisc up`
+    config_bridge(name, i)
 
     # Configure the container.
     config_lxc(name, i)
@@ -219,13 +252,16 @@ def create_containers(name, first, last, options)
   `rm -rf #{File.join(LOCAL_ETC, "xia")}`
 end
 
-
 if __FILE__ == $PROGRAM_NAME
   name = ARGV[0]
   first = ARGV[1].to_i()
   last = ARGV[2].to_i()
 
   options = parse_opts()
-  check_for_errors(name, first, last)
-  create_containers(name, first, last, options)
+  check_for_errors(name, first, last, options)
+  if options[:reset]
+    reset_containers(name, first, last)
+  else
+    create_containers(name, first, last, options)
+  end
 end
