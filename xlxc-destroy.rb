@@ -23,7 +23,7 @@ def parse_opts()
   options = {}
 
   optparse = OptionParser.new do |opts|
-    opts.banner = "Usage: ./xlxc-destroy NAME START_INDEX END_INDEX"
+    opts.banner = "Usage: ruby xlxc-destroy.rb NAME START_INDEX END_INDEX"
   end
 
   optparse.parse!

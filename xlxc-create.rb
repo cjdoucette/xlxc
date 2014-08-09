@@ -39,17 +39,8 @@ def parse_opts()
   options = {}
 
   optparse = OptionParser.new do |opts|
-    opts.banner = "Usage: ruby xlxc-create.rb [OPTIONS]"
-
-    options[:num] = 1
-    opts.on('-c', '--count=COUNT', 'Set number of containers') do |count|
-      options[:num] = count.to_i()
-    end
-
-    options[:ip] = false
-    opts.on('-i', '--ip', 'Create containers with IP stack only') do |name|
-      options[:ip] = true
-    end
+    opts.banner = "Usage: ruby xlxc-create.rb NAME START_INDEX END_INDEX \
+                   [--script]"
 
     options[:script] = false
     opts.on('-s', '--script', 'Create a script for each container') do |name|
@@ -63,7 +54,17 @@ end
 
 # Perform error checks on the parameters of the script and options
 #
-def check_for_errors(options)
+def check_for_errors(name, first, last)
+  if ARGV.length != 3
+    puts("Usage: ruby xlxc-create.rb NAME START_INDEX END_INDEX [--script]")
+    exit
+  end
+
+  if last < first
+    puts("End parameter cannot be less than start parameter.")
+    exit
+  end
+
   # Check that user is root.
   if Process.uid != 0
     puts("xlxc-create must be run as root.")
@@ -72,14 +73,14 @@ def check_for_errors(options)
 
   # Check that user is running XIA kernel.
   # TODO Find a better way to check this.
-  if !options[:ip] && !`uname -r`.include?("xia")
+  if !`uname -r`.include?("xia")
     puts("Must be running Linux XIA to create XIA containers.")
     exit
   end
 
   # Check that there are no conflicts in container names.
-  for i in 1..options[:num]
-    container = File.join(XLXC::LXC, options[:ip] ? "ip" : "xia" + i.to_s())
+  for i in first..last
+    container = File.join(XLXC::LXC, name + i.to_s())
     if File.exist?(container)
       puts("Naming conflict: container #{container} " +
            "already exists in #{XLXC::LXC}.")
@@ -108,8 +109,9 @@ end
 # information for it that is specific to this container, such
 # as a network interface, hardware address, and bind mounts.
 #
-def config_lxc(name, i, stack)
-  container = File.join(XLXC::LXC, name)
+def config_lxc(name, i)
+  container_name = name + i.to_s()
+  container = File.join(XLXC::LXC, container_name)
   rootfs = File.join(container, "rootfs")
   config = File.join(container, "config")
   fstab = File.join(container, "fstab")
@@ -117,10 +119,10 @@ def config_lxc(name, i, stack)
   # Set up container config file.
   open(config, 'w') { |f|
     f.puts(XLXC::LXC_CONFIG_TEMPLATE)
-    f.puts("lxc.network.link=#{name}br\n"                       \
-           "lxc.network.veth.pair=veth.#{i}#{stack}\n"          \
+    f.puts("lxc.network.link=#{container_name}br\n"             \
+           "lxc.network.veth.pair=veth.#{i}#{name}\n"           \
            "lxc.rootfs=#{rootfs}\n"                             \
-           "lxc.utsname=#{name}\n"                              \
+           "lxc.utsname=#{container_name}\n"                    \
            "lxc.mount=#{fstab}")
   }
 
@@ -136,11 +138,11 @@ def config_lxc(name, i, stack)
 
   # Set up container hosts files.
   open(File.join(rootfs, XLXC::HOSTS_FILE), 'w') { |f|
-    f.puts(sprintf(XLXC::HOSTS_TEMPLATE, stack + i.to_s()))
+    f.puts(sprintf(XLXC::HOSTS_TEMPLATE, name + i.to_s()))
   }
 
   open(File.join(rootfs, XLXC::HOSTNAME_FILE), 'w') { |f|
-    f.puts(stack + i.to_s())
+    f.puts(name + i.to_s())
   }
 
 end
@@ -191,17 +193,12 @@ end
 # Create Linux XIA containers with the given options by
 # installing and configuring Ubuntu.
 #
-def create_containers(options)
-  num_containers = options[:num]
-  stack_name = options[:ip] ? "ip" : "xia"
-
+def create_containers(name, first, last, options)
   # Set up local etc and dev directories.
-  if stack_name == "xia" 
-    `cp -R #{XIA} #{LOCAL_ETC}`
-  end
+  `cp -R #{XIA} #{LOCAL_ETC}`
 
-  for i in 1..num_containers
-    container_name = stack_name + i.to_s()
+  for i in first..last
+    container_name = name + i.to_s()
 
     # Create filesystem for container.
     create_fs(File.join(XLXC::LXC, container_name, "rootfs"))
@@ -212,21 +209,23 @@ def create_containers(options)
     `ifconfig #{container_name}br promisc up`
 
     # Configure the container.
-    config_lxc(container_name, i, stack_name)
+    config_lxc(name, i)
 
     if options[:script]
       create_script(container_name)
     end
   end
 
-  if stack_name == "xia"
-    `rm -rf #{File.join(LOCAL_ETC, "xia")}`
-  end
+  `rm -rf #{File.join(LOCAL_ETC, "xia")}`
 end
 
 
 if __FILE__ == $PROGRAM_NAME
+  name = ARGV[0]
+  first = ARGV[1].to_i()
+  last = ARGV[2].to_i()
+
   options = parse_opts()
-  check_for_errors(options)
-  create_containers(options)
+  check_for_errors(name, first, last)
+  create_containers(name, first, last, options)
 end
