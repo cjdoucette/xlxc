@@ -32,6 +32,9 @@ ROOT      = "/root"
 XIA       = "/etc/xia"
 XIA_HIDS  = File.join(XIA, "hid/prv")
 
+# Other files that need to be created.
+DEV_RANDOM   = "/dev/random"    # for HID principal in XIA
+DEV_URANDOM  = "/dev/urandom"   # for HID principal in XIA
 
 # Parse the command and organize the options.
 #
@@ -175,8 +178,10 @@ def create_fs(rootfs)
   # Bind mount (read-only) directories from host.
   do_bind_mounts(rootfs)
 
-  # Only the pts directory needs to be in dev to start.
+  # Create dev directory and necessary files (pts, random, urandom).
   FileUtils.mkdir_p(File.join(rootfs, DEV_PTS))
+  `mknod #{File.join(rootfs, DEV_RANDOM)} c 1 8`
+  `mknod #{File.join(rootfs, DEV_URANDOM)} c 1 9`
 
   # Copy local etc to containers.
   `cp -R #{LOCAL_ETC} #{rootfs}`
