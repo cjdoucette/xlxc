@@ -25,6 +25,8 @@ LOCAL_ETC = "./etc"
 PROC      = "/proc"
 SYS       = "/sys"
 DEV_PTS   = "/dev/pts"
+HOME      = "/home/ubuntu"
+ROOT      = "/root"
 
 # Directories that hold XIA-related data.
 XIA       = "/etc/xia"
@@ -164,6 +166,8 @@ def create_fs(rootfs)
   # Create necessary directories that are initially empty.
   FileUtils.mkdir_p(File.join(rootfs, PROC))
   FileUtils.mkdir_p(File.join(rootfs, SYS))
+  FileUtils.mkdir_p(File.join(rootfs, HOME))
+  FileUtils.mkdir_p(File.join(rootfs, ROOT))
 
   `chroot #{rootfs} passwd -d root`
 end
