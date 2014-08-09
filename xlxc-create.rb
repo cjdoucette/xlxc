@@ -131,6 +131,16 @@ def config_lxc(name, i, stack)
   open(File.join(rootfs, XLXC::INTERFACES_FILE), 'w') { |f|
     f.puts(sprintf(XLXC::INTERFACES_TEMPLATE, i + 1))
   }
+
+  # Set up container hosts files.
+  open(File.join(rootfs, XLXC::HOSTS_FILE), 'w') { |f|
+    f.puts(sprintf(XLXC::HOSTS_TEMPLATE, stack + i.to_s()))
+  }
+
+  open(File.join(rootfs, XLXC::HOSTNAME_FILE), 'w') { |f|
+    f.puts(stack + i.to_s())
+  }
+
 end
 
 # Create container filesystem by bind mounting from host.

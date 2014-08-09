@@ -71,6 +71,12 @@ sysfs        sys          sysfs defaults 0 0
   # File that holds interface information.
   INTERFACES_FILE = "/etc/network/interfaces"
 
+  # File that holds host information.
+  HOSTS_FILE = "/etc/hosts"
+
+  # File that holds hostname information.
+  HOSTNAME_FILE = "/etc/hostname"
+
   # Interface file with a format tag to make each
   # container's IP address unique.
   INTERFACES_TEMPLATE =
@@ -84,6 +90,19 @@ netmask 255.255.255.0
 network 192.168.0.0
 broadcast 192.168.0.255
 gateway 192.168.0.1
+"
+
+  # Hosts file with a format tag for a unique hostname.
+  HOSTS_TEMPLATE =
+"127.0.0.1   localhost
+127.0.1.1   %s
+
+# The following lines are desirable for IPv6 capable hosts
+::1     ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
 "
 
 end
