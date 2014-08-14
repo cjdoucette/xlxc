@@ -33,10 +33,7 @@ upstart_jobs () {
 do_stop () {
 	OMITPIDS=
 
-	# Note: /run transition: Now using /run in place of /var/run;
-	# /lib/init/rw will be removed following transition of
-	# /lib/init/rw users to /run.
-	for omitfile in /run/sendsigs.omit /lib/init/rw/sendsigs.omit; do
+	for omitfile in /run/sendsigs.omit; do
 		if [ -e $omitfile ]; then
 			for pid in $(cat $omitfile); do
 				OMITPIDS="${OMITPIDS:+$OMITPIDS }-o $pid"
@@ -47,11 +44,7 @@ do_stop () {
 	# Load sendsigs.omit.d/packagename files too, to make it
 	# possible for scripts that need to modify the list of pids at
 	# run time without race conditions.
-	# Note: /run transition: both /run and /lib/init/rw are used
-	# at present during the transition to /run; /lib/init/rw will
-	# be removed following transition of /lib/init/rw users to
-	# /run.
-	for omitdir in /run/sendsigs.omit.d /lib/init/rw/sendsigs.omit.d; do
+	for omitdir in /run/sendsigs.omit.d; do
 		if [ -d "${omitdir}" ]; then
 			for pidfile in "${omitdir}/"*; do
 				[ -f "$pidfile" ] || continue
@@ -134,7 +127,7 @@ do_stop () {
 	    killall5 -9 $OMITPIDS # SIGKILL
 	    log_action_end_msg 1
 	else
-	    log_action_begin_msg "All processes ended within $seq seconds."
+	    log_action_begin_msg "All processes ended within $seq seconds"
 	    log_action_end_msg 0
 	fi
 }

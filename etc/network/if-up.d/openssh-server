@@ -30,22 +30,8 @@ if [ ! -f /var/run/sshd.pid ] || \
 	exit 0
 fi
 
-case 'Ubuntu' in
-    Ubuntu)
-	# Both init script and Upstart job are present; we want to operate
-	# on the Upstart job.
-	stop ssh || true
-	start ssh || true
-	;;
-    *)
-	# We'd like to use 'reload' here, but it has some problems; see
-	# #502444.
-	if [ -x /usr/sbin/invoke-rc.d ]; then
-		invoke-rc.d ssh restart >/dev/null 2>&1 || true
-	else
-		/etc/init.d/ssh restart >/dev/null 2>&1 || true
-	fi
-	;;
-esac
+# We'd like to use 'reload' here, but it has some problems; see
+# #502444.
+invoke-rc.d ssh restart >/dev/null 2>&1 || true
 
 exit 0

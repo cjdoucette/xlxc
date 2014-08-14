@@ -16,15 +16,6 @@ set -e
 test -x /usr/sbin/sshd || exit 0
 ( /usr/sbin/sshd -\? 2>&1 | grep -q OpenSSH ) 2>/dev/null || exit 0
 
-case 'Ubuntu' in
-    Ubuntu)
-	# The init.d script is only for chroots.
-	if [ -e /etc/init/ssh.conf ] && ! ischroot; then
-	    exec /lib/init/upstart-job ssh "$@"
-	fi
-	;;
-esac
-
 umask 022
 
 if test -f /etc/default/ssh; then
@@ -40,6 +31,12 @@ fi
 # Are we running from init?
 run_by_init() {
     ([ "$previous" ] && [ "$runlevel" ]) || [ "$runlevel" = S ]
+}
+
+check_for_upstart() {
+    if init_is_upstart; then
+	exit $1
+    fi
 }
 
 check_for_no_start() {
@@ -85,6 +82,7 @@ export PATH="${PATH:+$PATH:}/usr/sbin:/sbin"
 
 case "$1" in
   start)
+	check_for_upstart 1
 	check_privsep_dir
 	check_for_no_start
 	check_dev_null
@@ -96,6 +94,7 @@ case "$1" in
 	fi
 	;;
   stop)
+	check_for_upstart 0
 	log_daemon_msg "Stopping OpenBSD Secure Shell server" "sshd" || true
 	if start-stop-daemon --stop --quiet --oknodo --pidfile /var/run/sshd.pid; then
 	    log_end_msg 0 || true
@@ -105,6 +104,7 @@ case "$1" in
 	;;
 
   reload|force-reload)
+	check_for_upstart 1
 	check_for_no_start
 	check_config
 	log_daemon_msg "Reloading OpenBSD Secure Shell server's configuration" "sshd" || true
@@ -116,6 +116,7 @@ case "$1" in
 	;;
 
   restart)
+	check_for_upstart 1
 	check_privsep_dir
 	check_config
 	log_daemon_msg "Restarting OpenBSD Secure Shell server" "sshd" || true
@@ -130,6 +131,7 @@ case "$1" in
 	;;
 
   try-restart)
+	check_for_upstart 1
 	check_privsep_dir
 	check_config
 	log_daemon_msg "Restarting OpenBSD Secure Shell server" "sshd" || true
@@ -160,6 +162,7 @@ case "$1" in
 	;;
 
   status)
+	check_for_upstart 1
 	status_of_proc -p /var/run/sshd.pid /usr/sbin/sshd sshd && exit 0 || exit $?
 	;;
 

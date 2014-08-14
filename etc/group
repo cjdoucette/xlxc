@@ -2,7 +2,7 @@ root:x:0:
 daemon:x:1:
 bin:x:2:
 sys:x:3:
-adm:x:4:
+adm:x:4:syslog
 tty:x:5:
 disk:x:6:
 lp:x:7:
@@ -38,7 +38,8 @@ games:x:60:
 users:x:100:
 nogroup:x:65534:
 libuuid:x:101:
-crontab:x:102:
-syslog:x:103:
+netdev:x:102:
+crontab:x:103:
 ssh:x:104:
+syslog:x:105:
 ubuntu:x:1000:

@@ -8,6 +8,8 @@
 # Short-Description: Set the CPU Frequency Scaling governor to "ondemand"
 ### END INIT INFO
 
+# Don't run if we're going to start an Android LXC container:
+[ ! -f /etc/init/lxc-android-config.conf ] || exit 0
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 
@@ -44,22 +46,6 @@ case "$1" in
 		[ -f $CPUFREQ ] || continue
 		echo -n $GOVERNOR > $CPUFREQ
 	done
-
-	# set some defaults
-	case $GOVERNOR in
-		*interactive*)
-			if [ -d /sys/module/cpu_tegra3 ]; then
-				echo 0 >/sys/module/cpu_tegra3/parameters/no_lp
-				echo 1 >/sys/module/cpu_tegra3/parameters/auto_hotplug
-			fi
-			if [ -d /sys/module/cpuidle ]; then
-				echo 0 >/sys/module/cpuidle/parameters/lp2_in_idle
-			fi
-			echo 2 >/sys/devices/system/cpu/cpufreq/interactive/boost_factor
-			echo 1 >/sys/devices/system/cpu/cpufreq/interactive/input_boost
-			echo 80 >/sys/devices/system/cpu/cpufreq/interactive/sustain_load
-			;;
-	esac
 	;;
     restart|reload|force-reload)
         echo "Error: argument '$1' not supported" >&2

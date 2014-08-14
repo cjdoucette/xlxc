@@ -1,14 +1,14 @@
 ###############################################################################
 #
-#  MIME-TYPES and the extensions that represent them
+#  MIME media types and the extensions that represent them.
 #
-#  The format of this file is a MIME type on the left and zero or more
+#  The format of this file is a media type on the left and zero or more
 #  filename extensions on the right.  Programs using this file will map
 #  files ending with those extensions to the associated type.
 #
-#  This file is part of the "mime-support" package.  Please send email (not a
-#  bug report) to mime-support@packages.debian.org if you would like new types
-#  and/or extensions to be added.
+#  This file is part of the "mime-support" package.  Please report a bug using
+#  the "reportbug" command of the "reportbug" package if you would like new
+#  types or extensions to be added.
 #
 #  The reason that all types are managed by the mime-support package instead
 #  allowing individual packages to install types in much the same way as they
@@ -19,12 +19,6 @@
 #  Users can add their own types if they wish by creating a ".mime.types"
 #  file in their home directory.  Definitions included there will take
 #  precedence over those listed here.
-#
-#  Note: Compression schemes like "gzip", "bzip", and "compress" are not
-#  actually "mime-types".  They are "encodings" and hence must _not_ have
-#  entries in this file to map their extensions.  The "mime-type" of an
-#  encoded file refers to the type of data that has been encoded, not the
-#  type of encoding.
 #
 ###############################################################################
 
@@ -127,7 +121,7 @@ application/sgml-open-catalog
 application/sieve
 application/sla					stl
 application/slate
-application/smil				smi smil
+application/smil+xml				smi smil
 application/timestamp-query
 application/timestamp-reply
 application/vemmi
@@ -136,9 +130,10 @@ application/whoispp-response
 application/wita
 application/x400-bp
 application/xhtml+xml				xhtml xht
-application/xml					xml xsl xsd
+application/xml					xml xsd
 application/xml-dtd
 application/xml-external-parsed-entity
+application/xslt+xml				xsl xslt
 application/xspf+xml				xspf
 application/zip					zip
 application/vnd.3M.Post-it-Notes
@@ -314,8 +309,6 @@ application/vnd.openxmlformats-officedocument.presentationml.slide		sldx
 application/vnd.openxmlformats-officedocument.presentationml.slideshow		ppsx
 application/vnd.openxmlformats-officedocument.presentationml.template		potx
 application/vnd.openxmlformats-officedocument.spreadsheetml.sheet		xlsx
-application/vnd.openxmlformats-officedocument.spreadsheetml.sheet		xlsx
-application/vnd.openxmlformats-officedocument.spreadsheetml.template		xltx
 application/vnd.openxmlformats-officedocument.spreadsheetml.template		xltx
 application/vnd.openxmlformats-officedocument.wordprocessingml.document		docx
 application/vnd.openxmlformats-officedocument.wordprocessingml.template		dotx
@@ -524,8 +517,6 @@ audio/32kadpcm
 audio/3gpp
 audio/amr					amr
 audio/amr-wb					awb
-audio/amr					amr
-audio/amr-wb					awb
 audio/annodex					axa
 audio/basic					au snd
 audio/csound					csd orc sco
@@ -537,7 +528,7 @@ audio/mp4a-latm
 audio/mpa-robust
 audio/mpeg					mpga mpega mp2 mp3 m4a
 audio/mpegurl					m3u
-audio/ogg					oga ogg spx
+audio/ogg					oga ogg opus spx
 audio/parityfec
 audio/prs.sid					sid
 audio/telephone-event
@@ -629,7 +620,10 @@ image/cgm
 image/g3fax
 image/gif					gif
 image/ief					ief
+image/jp2					jp2 jpg2
 image/jpeg					jpeg jpg jpe
+image/jpm					jpm
+image/jpx					jpx jpf
 image/naplps
 image/pcx					pcx
 image/png					png
@@ -741,9 +735,11 @@ text/scriptlet					sct wsc
 text/t140
 text/texmacs					tm
 text/tab-separated-values			tsv
+text/turtle					ttl
 text/uri-list
 text/vnd.abc
 text/vnd.curl
+text/vnd.debian.copyright
 text/vnd.DMClientScript
 text/vnd.flatland.3dml
 text/vnd.fly

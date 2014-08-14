@@ -11,6 +11,7 @@
   capability net_raw,
   capability sys_module,
   capability dac_override,
+  capability net_admin,
 
   network packet,
   network raw,
@@ -19,6 +20,8 @@
   @{PROC}/[0-9]*/net/** r,
 
   /sbin/dhclient mr,
+  # LP: #1197484 and LP: #1202203 - why is this needed? :(
+  /bin/bash mr,
 
   /etc/dhclient.conf r,
   /etc/dhcp/ r,
@@ -31,7 +34,7 @@
   # NetworkManager
   /{,var/}run/nm*conf r,
   /{,var/}run/sendsigs.omit.d/network-manager.dhclient*.pid lrw,
-  /var/lib/NetworkManager/dhclient-*.conf lrw,
+  /var/lib/NetworkManager/dhclient*.conf lrw,
   /var/lib/NetworkManager/dhclient*.lease* lrw,
 
   # connman
@@ -54,8 +57,8 @@
   /sbin/dhclient-script                           Uxr,
 
   # Run the ELF executables under their own unrestricted profiles
-  /usr/lib/NetworkManager/nm-dhcp-client.action   Pxr,
-  /usr/lib/connman/scripts/dhclient-script        Pxr,
+  /usr/lib/NetworkManager/nm-dhcp-client.action   Pxrm,
+  /usr/lib/connman/scripts/dhclient-script        Pxrm,
 
   # Site-specific additions and overrides. See local/README for details.
   #include <local/sbin.dhclient>
@@ -65,6 +68,8 @@
   #include <abstractions/base>
   #include <abstractions/dbus>
   /usr/lib/NetworkManager/nm-dhcp-client.action mr,
+
+  /var/lib/NetworkManager/*lease r,
 }
 
 /usr/lib/connman/scripts/dhclient-script {
