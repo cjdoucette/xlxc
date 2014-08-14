@@ -27,6 +27,7 @@ SYS       = "/sys"
 DEV_PTS   = "/dev/pts"
 HOME      = "/home/ubuntu"
 ROOT      = "/root"
+VAR_RUN   = "/var/run"
 
 # Directories that hold XIA-related data.
 XIA       = "/etc/xia"
@@ -191,6 +192,7 @@ def create_fs(rootfs)
   FileUtils.mkdir_p(File.join(rootfs, SYS))
   FileUtils.mkdir_p(File.join(rootfs, HOME))
   FileUtils.mkdir_p(File.join(rootfs, ROOT))
+  FileUtils.mkdir_p(File.join(rootfs, VAR_RUN))
 
   `chroot #{rootfs} passwd -d root`
 end
