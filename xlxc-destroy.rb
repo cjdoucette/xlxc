@@ -73,9 +73,8 @@ def destroy(name, first, last)
     # Stop the container if it is still running.
     `lxc-stop -n #{container} --kill`
 
-    # Destroy the ethernet bridge to this container.
-    `ifconfig #{container}br promisc down`
-    `brctl delbr #{container}br`
+    # Decrement reference count to the ethernet bridge.
+    XLXC.dec_bridge_ref(XLXC::DEF_BRIDGE_NAME)
 
     rootfs = File.join(XLXC::LXC, container, "rootfs")
     destroy_fs(rootfs)

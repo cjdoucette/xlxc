@@ -37,6 +37,14 @@ XIA_HIDS  = File.join(XIA, "hid/prv")
 DEV_RANDOM   = "/dev/random"    # for HID principal in XIA
 DEV_URANDOM  = "/dev/urandom"   # for HID principal in XIA
 
+CMD_BRCTL                 = "/sbin/brctl"
+CMD_IFCONFIG              = "/sbin/ifconfig"
+CMD_IPTABLES              = "/sbin/iptables"
+CMD_ROUTE                 = "/sbin/route"
+HOST_NETDEVICE            = "eth0"
+PRIVATE_GW_NAT            = "192.168.100.1"
+PRIVATE_NETMASK           = "255.255.255.0"
+
 # Parse the command and organize the options.
 #
 def parse_opts()
@@ -132,7 +140,7 @@ def config_lxc(name, i)
   # Set up container config file.
   open(config, 'w') { |f|
     f.puts(XLXC::LXC_CONFIG_TEMPLATE)
-    f.puts("lxc.network.link=#{container_name}br\n"             \
+    f.puts("lxc.network.link=#{XLXC::DEF_BRIDGE_NAME}\n"        \
            "lxc.network.veth.pair=veth.#{i}#{name}\n"           \
            "lxc.rootfs=#{rootfs}\n"                             \
            "lxc.utsname=#{container_name}\n"                    \
@@ -215,11 +223,12 @@ end
 
 # Configure the ethernet bridge to a container.
 #
-def config_bridge(name, i)
-  container_name = name + i.to_s()
-  `brctl addbr #{container_name}br`
-  `ifconfig #{container_name}br hw ether 00:00:00:00:00:#{"%02x" % i}`
-  `ifconfig #{container_name}br promisc up`
+def config_bridge(bridge)
+  `#{CMD_BRCTL} addbr #{bridge}`
+  `#{CMD_BRCTL} setfd #{bridge} 0`
+  `#{CMD_IFCONFIG} #{bridge} #{PRIVATE_GW_NAT} netmask #{PRIVATE_NETMASK} promisc up`
+  `#{CMD_IPTABLES} -t nat -A POSTROUTING -o #{HOST_NETDEVICE} -j MASQUERADE`
+  `echo 1 > /proc/sys/net/ipv4/ip_forward`
 end
 
 # Re-add the ethernet bridges for containers that
@@ -239,17 +248,20 @@ def create_containers(name, first, last, options)
   # Set up local etc and dev directories.
   `cp -R #{XIA} #{LOCAL_ETC}`
 
+  # Add ethernet bridge for these containers, if necessary.
+  config_bridge(XLXC::DEF_BRIDGE_NAME)
+
   for i in first..last
     container_name = name + i.to_s()
 
     # Create filesystem for container.
     create_fs(File.join(XLXC::LXC, container_name, "rootfs"))
 
-    # Add ethernet bridge to this container.
-    config_bridge(name, i)
-
     # Configure the container.
     config_lxc(name, i)
+
+    # Add reference count to the ethernet bridge.
+    XLXC.inc_bridge_ref(XLXC::DEF_BRIDGE_NAME)
 
     if options[:script]
       create_script(container_name)
