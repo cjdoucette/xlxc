@@ -224,12 +224,18 @@ def config_bridge(bridge)
   `echo 1 > /proc/sys/net/ipv4/ip_forward`
 end
 
-# Re-add the ethernet bridges for containers that
+# Re-add the ethernet bridge for containers that
 # have previously been created.
 #
-def reset_containers(name, first, last)
+def reset_bridge_and_containers(name, first, last)
+  # Delete any old bridge data that may be present.
+  bridge_file = File.join(XLXC::BRIDGES, XLXC::DEF_BRIDGE_NAME)
+  `rm #{bridge_file}`
+  config_bridge(XLXC::DEF_BRIDGE_NAME)
+
+  # Recreate bridge and add bind mounts for containers.
   for i in first..last
-    config_bridge(name, i)
+    XLXC.inc_bridge_ref(XLXC::DEF_BRIDGE_NAME)
     do_bind_mounts(File.join(XLXC::LXC, name + i.to_s(), "rootfs"))
   end
 end
@@ -272,7 +278,7 @@ if __FILE__ == $PROGRAM_NAME
   options = parse_opts()
   check_for_errors(name, first, last, options)
   if options[:reset]
-    reset_containers(name, first, last)
+    reset_bridge_and_containers(name, first, last)
   else
     create_containers(name, first, last, options)
   end
