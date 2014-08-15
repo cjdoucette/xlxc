@@ -51,16 +51,16 @@ def parse_opts()
   options = {}
 
   optparse = OptionParser.new do |opts|
-    opts.banner = "Usage: ruby xlxc-create.rb NAME START_INDEX END_INDEX \
-                   [--reset] [--script]"
+    opts.banner = "Usage: ruby xlxc-create.rb NAME START_INDEX END_INDEX "\
+                  "[--reset] [--script]"
 
     options[:reset] = false
-    opts.on('-r', '--reset', 'Reset containers by adding bridges') do |name|
+    opts.on('-r', '--reset', 'Reset containers by adding bridges') do
       options[:reset] = true
     end
 
     options[:script] = false
-    opts.on('-s', '--script', 'Create a script for each container') do |name|
+    opts.on('-s', '--script', 'Create a script for each container') do
       options[:script] = true
     end
   end
