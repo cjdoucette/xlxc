@@ -40,7 +40,7 @@ XIA_HIDS  = File.join(XIA, "hid/prv")
 DEV_RANDOM   = "/dev/random"    # for HID principal in XIA
 DEV_URANDOM  = "/dev/urandom"   # for HID principal in XIA
 
-USAGE = "Usage: ruby xlxc-create.rb NAME START END --gw GATEWAY [-rs]"
+USAGE = "Usage: ruby xlxc-create.rb NAME START END GATEWAY [-rs]"
 
 
 # Parse the command and organize the options.
@@ -50,11 +50,6 @@ def parse_opts()
 
   optparse = OptionParser.new do |opts|
     opts.banner = USAGE
-
-    options[:gw] = nil
-    opts.on('-g', '--gw ARG', 'Gateway interface on host') do |gw|
-      options[:gw] = gw
-    end
 
     options[:reset] = false
     opts.on('-r', '--reset', 'Reset containers and bridges') do
@@ -73,8 +68,8 @@ end
 
 # Perform error checks on the parameters of the script and options
 #
-def check_for_errors(name, first, last, options)
-  if ARGV.length != 3
+def check_for_errors(name, first, last, gw, options)
+  if ARGV.length != 4
     puts(USAGE)
     exit
   end
@@ -91,13 +86,8 @@ def check_for_errors(name, first, last, options)
   end
 
   # Check to make sure gateway exists.
-  if options[:gw] == nil
-    puts("Must specify host interface to be gateway for container(s).")
-    exit
-  end
-
-  if !File.exists?(File.join(INTERFACES, options[:gw]))
-    puts("Host interface #{options[:gw]} does not exist.")
+  if !File.exists?(File.join(INTERFACES, gw))
+    puts("Host interface #{gw} does not exist.")
     exit
   end
 
@@ -246,7 +236,7 @@ end
 
 # Create or reset containers and ethernet bridges.
 #
-def setup_bridge_and_containers(name, first, last, options)
+def setup_bridge_and_containers(name, first, last, gw, options)
 
   if options[:reset]
     `rm #{File.join(XLXC::BRIDGES, XLXC::DEF_BRIDGE_NAME)}`
@@ -255,7 +245,7 @@ def setup_bridge_and_containers(name, first, last, options)
   end
 
   # Add ethernet bridge for these containers, if necessary.
-  config_bridge(XLXC::DEF_BRIDGE_NAME, options[:gw])
+  config_bridge(XLXC::DEF_BRIDGE_NAME, gw)
 
   for i in first..last
     container_name = name + i.to_s()
@@ -284,8 +274,9 @@ if __FILE__ == $PROGRAM_NAME
   name = ARGV[0]
   first = ARGV[1].to_i()
   last = ARGV[2].to_i()
+  gw = ARGV[3]
 
   options = parse_opts()
-  check_for_errors(name, first, last, options)
-  setup_bridge_and_containers(name, first, last, options)
+  check_for_errors(name, first, last, gw, options)
+  setup_bridge_and_containers(name, first, last, gw, options)
 end
