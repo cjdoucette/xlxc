@@ -40,14 +40,16 @@ XIA_HIDS  = File.join(XIA, "hid/prv")
 DEV_RANDOM   = "/dev/random"    # for HID principal in XIA
 DEV_URANDOM  = "/dev/urandom"   # for HID principal in XIA
 
+USAGE = "Usage: ruby xlxc-create.rb NAME START END --gw GATEWAY [-rs]"
+
+
 # Parse the command and organize the options.
 #
 def parse_opts()
   options = {}
 
   optparse = OptionParser.new do |opts|
-    opts.banner = "Usage: ruby xlxc-create.rb NAME START_INDEX END_INDEX "\
-                  "--gw GATEWAY [--reset] [--script]"
+    opts.banner = USAGE
 
     options[:gw] = nil
     opts.on('-g', '--gw ARG', 'Gateway interface on host') do |gw|
@@ -55,7 +57,7 @@ def parse_opts()
     end
 
     options[:reset] = false
-    opts.on('-r', '--reset', 'Reset containers by adding bridges') do
+    opts.on('-r', '--reset', 'Reset containers and bridges') do
       options[:reset] = true
     end
 
@@ -73,8 +75,7 @@ end
 #
 def check_for_errors(name, first, last, options)
   if ARGV.length != 3
-    puts("Usage: ruby xlxc-create.rb NAME START_INDEX END_INDEX \
-    [--reset] [--script]")
+    puts(USAGE)
     exit
   end
 
