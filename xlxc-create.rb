@@ -244,28 +244,15 @@ def config_bridge(bridge, gw)
   `echo 1 > /proc/sys/net/ipv4/ip_forward`
 end
 
-# Re-add the ethernet bridge for containers that
-# have previously been created.
+# Create or reset containers and ethernet bridges.
 #
-def reset_bridge_and_containers(name, first, last, options)
-  # Delete any old bridge data that may be present.
-  bridge_file = File.join(XLXC::BRIDGES, XLXC::DEF_BRIDGE_NAME)
-  `rm #{bridge_file}`
-  config_bridge(XLXC::DEF_BRIDGE_NAME, options[:gw])
+def setup_bridge_and_containers(name, first, last, options)
 
-  # Recreate bridge and add bind mounts for containers.
-  for i in first..last
-    XLXC.inc_bridge_ref(XLXC::DEF_BRIDGE_NAME)
-    do_bind_mounts(File.join(XLXC::LXC, name + i.to_s(), "rootfs"))
+  if options[:reset]
+    `rm #{File.join(XLXC::BRIDGES, XLXC::DEF_BRIDGE_NAME)}`
+  else
+    `cp -R #{XIA} #{LOCAL_ETC}`
   end
-end
-
-# Create Linux XIA containers with the given options by
-# installing and configuring Ubuntu.
-#
-def create_bridge_and_containers(name, first, last, options)
-  # Set up local etc and dev directories.
-  `cp -R #{XIA} #{LOCAL_ETC}`
 
   # Add ethernet bridge for these containers, if necessary.
   config_bridge(XLXC::DEF_BRIDGE_NAME, options[:gw])
@@ -273,21 +260,24 @@ def create_bridge_and_containers(name, first, last, options)
   for i in first..last
     container_name = name + i.to_s()
 
-    # Create filesystem for container.
-    create_fs(File.join(XLXC::LXC, container_name, "rootfs"))
+    if options[:reset]
+      do_bind_mounts(File.join(XLXC::LXC, container_name, "rootfs"))
+    else
+      # Create filesystem for container.
+      create_fs(File.join(XLXC::LXC, container_name, "rootfs"))
 
-    # Configure the container.
-    config_lxc(name, i)
+      # Configure the container.
+      config_lxc(name, i)
 
-    # Add reference count to the ethernet bridge.
-    XLXC.inc_bridge_ref(XLXC::DEF_BRIDGE_NAME)
+      if options[:script]
+        create_script(container_name)
+      end
 
-    if options[:script]
-      create_script(container_name)
+      `rm -rf #{File.join(LOCAL_ETC, "xia")}`
     end
-  end
 
-  `rm -rf #{File.join(LOCAL_ETC, "xia")}`
+    XLXC.inc_bridge_ref(XLXC::DEF_BRIDGE_NAME)
+  end
 end
 
 if __FILE__ == $PROGRAM_NAME
@@ -297,9 +287,5 @@ if __FILE__ == $PROGRAM_NAME
 
   options = parse_opts()
   check_for_errors(name, first, last, options)
-  if options[:reset]
-    reset_bridge_and_containers(name, first, last, options)
-  else
-    create_bridge_and_containers(name, first, last, options)
-  end
+  setup_bridge_and_containers(name, first, last, options)
 end
