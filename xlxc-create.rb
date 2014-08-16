@@ -29,6 +29,9 @@ HOME      = "/home/ubuntu"
 ROOT      = "/root"
 VAR_RUN   = "/var/run"
 
+# Directory that contains directories for interfaces.
+INTERFACES = "/sys/class/net"
+
 # Directories that hold XIA-related data.
 XIA       = "/etc/xia"
 XIA_HIDS  = File.join(XIA, "hid/prv")
@@ -44,7 +47,12 @@ def parse_opts()
 
   optparse = OptionParser.new do |opts|
     opts.banner = "Usage: ruby xlxc-create.rb NAME START_INDEX END_INDEX "\
-                  "[--reset] [--script]"
+                  "--gw GATEWAY [--reset] [--script]"
+
+    options[:gw] = nil
+    opts.on('-g', '--gw ARG', 'Gateway interface on host') do |gw|
+      options[:gw] = gw
+    end
 
     options[:reset] = false
     opts.on('-r', '--reset', 'Reset containers by adding bridges') do
@@ -78,6 +86,17 @@ def check_for_errors(name, first, last, options)
   # Check that user is root.
   if Process.uid != 0
     puts("xlxc-create must be run as root.")
+    exit
+  end
+
+  # Check to make sure gateway exists.
+  if options[:gw] == nil
+    puts("Must specify host interface to be gateway for container(s).")
+    exit
+  end
+
+  if !File.exists?(File.join(INTERFACES, options[:gw]))
+    puts("Host interface #{options[:gw]} does not exist.")
     exit
   end
 
@@ -215,23 +234,23 @@ end
 
 # Configure the ethernet bridge to a container.
 #
-def config_bridge(bridge)
+def config_bridge(bridge, gw)
   `brctl addbr #{bridge}`
   `brctl setfd #{bridge} 0`
   `ifconfig #{bridge} #{XLXC::DEF_PRIVATE_GW} \
    netmask #{XLXC::DEF_PRIVATE_NETMASK} promisc up`
-  `iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE`
+  `iptables -t nat -A POSTROUTING -o #{gw} -j MASQUERADE`
   `echo 1 > /proc/sys/net/ipv4/ip_forward`
 end
 
 # Re-add the ethernet bridge for containers that
 # have previously been created.
 #
-def reset_bridge_and_containers(name, first, last)
+def reset_bridge_and_containers(name, first, last, options)
   # Delete any old bridge data that may be present.
   bridge_file = File.join(XLXC::BRIDGES, XLXC::DEF_BRIDGE_NAME)
   `rm #{bridge_file}`
-  config_bridge(XLXC::DEF_BRIDGE_NAME)
+  config_bridge(XLXC::DEF_BRIDGE_NAME, options[:gw])
 
   # Recreate bridge and add bind mounts for containers.
   for i in first..last
@@ -243,12 +262,12 @@ end
 # Create Linux XIA containers with the given options by
 # installing and configuring Ubuntu.
 #
-def create_containers(name, first, last, options)
+def create_bridge_and_containers(name, first, last, options)
   # Set up local etc and dev directories.
   `cp -R #{XIA} #{LOCAL_ETC}`
 
   # Add ethernet bridge for these containers, if necessary.
-  config_bridge(XLXC::DEF_BRIDGE_NAME)
+  config_bridge(XLXC::DEF_BRIDGE_NAME, options[:gw])
 
   for i in first..last
     container_name = name + i.to_s()
@@ -278,8 +297,8 @@ if __FILE__ == $PROGRAM_NAME
   options = parse_opts()
   check_for_errors(name, first, last, options)
   if options[:reset]
-    reset_bridge_and_containers(name, first, last)
+    reset_bridge_and_containers(name, first, last, options)
   else
-    create_containers(name, first, last, options)
+    create_bridge_and_containers(name, first, last, options)
   end
 end
