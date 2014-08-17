@@ -40,8 +40,7 @@ XIA_HIDS  = File.join(XIA, "hid/prv")
 DEV_RANDOM   = "/dev/random"    # for HID principal in XIA
 DEV_URANDOM  = "/dev/urandom"   # for HID principal in XIA
 
-USAGE = "Usage: ruby xlxc-create.rb NAME START END GATEWAY [-rs]"
-
+USAGE = "Usage: ruby xlxc-create.rb {--delbrs | NAME START END GATEWAY [-rs]}"
 
 # Parse the command and organize the options.
 #
@@ -50,6 +49,11 @@ def parse_opts()
 
   optparse = OptionParser.new do |opts|
     opts.banner = USAGE
+
+    options[:delbrs] = false
+    opts.on('-d', '--delbrs', 'Delete all Ethernet bridges') do
+      options[:delbrs] = true
+    end
 
     options[:reset] = false
     opts.on('-r', '--reset', 'Reset containers and bridges') do
@@ -69,6 +73,11 @@ end
 # Perform error checks on the parameters of the script and options
 #
 def check_for_errors(name, first, last, gw, options)
+  if options[:delbrs]
+    puts("Deleting Ethernet bridges and quiting.")
+    `rm -rf #{XLXC::BRIDGES}`
+  end
+
   if ARGV.length != 4
     puts(USAGE)
     exit
@@ -238,9 +247,7 @@ end
 #
 def setup_bridge_and_containers(name, first, last, gw, options)
 
-  if options[:reset]
-    `rm #{File.join(XLXC::BRIDGES, XLXC::DEF_BRIDGE_NAME)}`
-  else
+  if !options[:reset]
     `cp -R #{XIA} #{LOCAL_ETC}`
   end
 
@@ -249,7 +256,6 @@ def setup_bridge_and_containers(name, first, last, gw, options)
 
   for i in first..last
     container_name = name + i.to_s()
-
     if options[:reset]
       do_bind_mounts(File.join(XLXC::LXC, container_name, "rootfs"))
     else
@@ -263,11 +269,14 @@ def setup_bridge_and_containers(name, first, last, gw, options)
         create_script(container_name)
       end
 
-      `rm -rf #{File.join(LOCAL_ETC, "xia")}`
     end
-
     XLXC.inc_bridge_ref(XLXC::DEF_BRIDGE_NAME)
   end
+
+  if !options[:reset]
+    `rm -rf #{File.join(LOCAL_ETC, "xia")}`
+  end
+
 end
 
 if __FILE__ == $PROGRAM_NAME
