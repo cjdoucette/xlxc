@@ -16,6 +16,7 @@ require 'fileutils'
 require 'optparse'
 require './xlxc'
 
+USAGE = "Usage: ruby xlxc-destroy.rb NAME START END [-d]"
 
 # Parse the command and organize the options.
 #
@@ -23,8 +24,13 @@ def parse_opts()
   options = {}
 
   optparse = OptionParser.new do |opts|
-    opts.banner = "Usage: ruby xlxc-destroy.rb NAME START_INDEX END_INDEX"
+    opts.banner = USAGE
   end
+
+    options[:delbrs] = false
+    opts.on('-d', '--delbrs', 'Delete all Ethernet bridges') do
+      options[:delbrs] = true
+    end
 
   optparse.parse!
   return options
@@ -32,12 +38,15 @@ end
 
 # Perform error checks on the parameters of the script and options
 #
-def check_for_errors()
-  first = ARGV[1].to_i()
-  last = ARGV[2].to_i()
+def check_for_errors(first, last)
+  if options[:delbrs]
+    puts("Deleting Ethernet bridges and quiting.")
+    `rm -rf #{XLXC::BRIDGES}`
+    exit
+  end
 
   if ARGV.length != 3
-    puts("Usage: ruby xlxc-destroy.rb NAME START_INDEX END_INDEX")
+    puts(USAGE)
     exit
   end
 
@@ -74,7 +83,7 @@ def destroy(name, first, last)
     `lxc-stop -n #{container} --kill`
 
     # Decrement reference count to the ethernet bridge.
-    XLXC.dec_bridge_ref(XLXC::DEF_BRIDGE_NAME)
+    XLXC.dec_bridge_ref(name)
 
     rootfs = File.join(XLXC::LXC, container, "rootfs")
     destroy_fs(rootfs)
@@ -88,7 +97,9 @@ end
 
 
 if __FILE__ == $PROGRAM_NAME
+  first = ARGV[1].to_i()
+  last = ARGV[2].to_i()
   options = parse_opts()
-  check_for_errors()
+  check_for_errors(first, last)
   destroy(ARGV[0], ARGV[1].to_i(), ARGV[2].to_i())
 end

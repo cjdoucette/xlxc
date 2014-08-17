@@ -21,7 +21,6 @@ class XLXC
   BRIDGES = File.join(LXC, "bridges")
 
   # Default name for bridge to containers.
-  DEF_BRIDGE_NAME     = "br0"
   DEF_PRIVATE_GW      = "192.168.100.1"
   DEF_PRIVATE_NETMASK = "255.255.255.0"
 

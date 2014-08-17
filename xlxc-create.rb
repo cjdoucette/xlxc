@@ -40,7 +40,7 @@ XIA_HIDS  = File.join(XIA, "hid/prv")
 DEV_RANDOM   = "/dev/random"    # for HID principal in XIA
 DEV_URANDOM  = "/dev/urandom"   # for HID principal in XIA
 
-USAGE = "Usage: ruby xlxc-create.rb {--delbrs | NAME START END GATEWAY [-rs]}"
+USAGE = "Usage: ruby xlxc-create.rb NAME START END GATEWAY [-rs]"
 
 # Parse the command and organize the options.
 #
@@ -49,11 +49,6 @@ def parse_opts()
 
   optparse = OptionParser.new do |opts|
     opts.banner = USAGE
-
-    options[:delbrs] = false
-    opts.on('-d', '--delbrs', 'Delete all Ethernet bridges') do
-      options[:delbrs] = true
-    end
 
     options[:reset] = false
     opts.on('-r', '--reset', 'Reset containers and bridges') do
@@ -73,11 +68,6 @@ end
 # Perform error checks on the parameters of the script and options
 #
 def check_for_errors(name, first, last, gw, options)
-  if options[:delbrs]
-    puts("Deleting Ethernet bridges and quiting.")
-    `rm -rf #{XLXC::BRIDGES}`
-  end
-
   if ARGV.length != 4
     puts(USAGE)
     exit
@@ -151,8 +141,8 @@ def config_lxc(name, i)
   # Set up container config file.
   open(config, 'w') { |f|
     f.puts(XLXC::LXC_CONFIG_TEMPLATE)
-    f.puts("lxc.network.link=#{XLXC::DEF_BRIDGE_NAME}\n"        \
-           "lxc.network.veth.pair=veth.#{i}#{name}\n"           \
+    f.puts("lxc.network.link=#{name}br\n"                       \
+           "lxc.network.veth.pair=#{container_name}veth\n"      \
            "lxc.rootfs=#{rootfs}\n"                             \
            "lxc.utsname=#{container_name}\n"                    \
            "lxc.mount=#{fstab}")
@@ -252,7 +242,7 @@ def setup_bridge_and_containers(name, first, last, gw, options)
   end
 
   # Add ethernet bridge for these containers, if necessary.
-  config_bridge(XLXC::DEF_BRIDGE_NAME, gw)
+  config_bridge(name, gw)
 
   for i in first..last
     container_name = name + i.to_s()
@@ -270,7 +260,7 @@ def setup_bridge_and_containers(name, first, last, gw, options)
       end
 
     end
-    XLXC.inc_bridge_ref(XLXC::DEF_BRIDGE_NAME)
+    XLXC.inc_bridge_ref(name)
   end
 
   if !options[:reset]
