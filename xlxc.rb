@@ -45,6 +45,9 @@ class XLXC
   # destroying it if necessary.
   def self.dec_bridge_ref(bridge)
     bridge_file = File.join(BRIDGES, bridge)
+    if !File.exists?(bridge_file)
+      return
+    end
     f = File.open(bridge_file, File::RDWR, 0644)
     f.flock(File::LOCK_EX)
     count = f.readline.to_i()

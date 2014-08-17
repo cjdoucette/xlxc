@@ -16,7 +16,7 @@ require 'fileutils'
 require 'optparse'
 require './xlxc'
 
-USAGE = "Usage: ruby xlxc-destroy.rb NAME START END [-d]"
+USAGE = "Usage: ruby xlxc-destroy.rb {NAME START END | --delbrs}"
 
 # Parse the command and organize the options.
 #
@@ -25,12 +25,13 @@ def parse_opts()
 
   optparse = OptionParser.new do |opts|
     opts.banner = USAGE
-  end
 
     options[:delbrs] = false
     opts.on('-d', '--delbrs', 'Delete all Ethernet bridges') do
       options[:delbrs] = true
     end
+
+  end
 
   optparse.parse!
   return options
@@ -38,7 +39,7 @@ end
 
 # Perform error checks on the parameters of the script and options
 #
-def check_for_errors(first, last)
+def check_for_errors(first, last, options)
   if options[:delbrs]
     puts("Deleting Ethernet bridges and quiting.")
     `rm -rf #{XLXC::BRIDGES}`
@@ -97,9 +98,10 @@ end
 
 
 if __FILE__ == $PROGRAM_NAME
+  name = ARGV[0]
   first = ARGV[1].to_i()
   last = ARGV[2].to_i()
   options = parse_opts()
-  check_for_errors(first, last)
-  destroy(ARGV[0], ARGV[1].to_i(), ARGV[2].to_i())
+  check_for_errors(first, last, options)
+  destroy(name, first, last)
 end

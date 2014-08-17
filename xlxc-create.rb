@@ -131,7 +131,7 @@ end
 # information for it that is specific to this container, such
 # as a network interface, hardware address, and bind mounts.
 #
-def config_lxc(name, i)
+def config_lxc(bridge, name, i)
   container_name = name + i.to_s()
   container = File.join(XLXC::LXC, container_name)
   rootfs = File.join(container, "rootfs")
@@ -141,7 +141,7 @@ def config_lxc(name, i)
   # Set up container config file.
   open(config, 'w') { |f|
     f.puts(XLXC::LXC_CONFIG_TEMPLATE)
-    f.puts("lxc.network.link=#{name}br\n"                       \
+    f.puts("lxc.network.link=#{bridge}\n"                       \
            "lxc.network.veth.pair=#{container_name}veth\n"      \
            "lxc.rootfs=#{rootfs}\n"                             \
            "lxc.utsname=#{container_name}\n"                    \
@@ -237,12 +237,14 @@ end
 #
 def setup_bridge_and_containers(name, first, last, gw, options)
 
+  bridge = name + "br"
+
   if !options[:reset]
     `cp -R #{XIA} #{LOCAL_ETC}`
   end
 
   # Add ethernet bridge for these containers, if necessary.
-  config_bridge(name, gw)
+  config_bridge(bridge, gw)
 
   for i in first..last
     container_name = name + i.to_s()
@@ -253,14 +255,14 @@ def setup_bridge_and_containers(name, first, last, gw, options)
       create_fs(File.join(XLXC::LXC, container_name, "rootfs"))
 
       # Configure the container.
-      config_lxc(name, i)
+      config_lxc(bridge, name, i)
 
       if options[:script]
         create_script(container_name)
       end
 
     end
-    XLXC.inc_bridge_ref(name)
+    XLXC.inc_bridge_ref(bridge)
   end
 
   if !options[:reset]
