@@ -17,50 +17,6 @@ class XLXC
   SBIN  = "/sbin"
   USR   = "/usr"
 
-  # Directory that contains all bridge information.
-  BRIDGES = File.join(LXC, "bridges")
-
-  # Default name for bridge to containers.
-  DEF_PRIVATE_GW      = "192.168.100.1"
-  DEF_PRIVATE_NETMASK = "255.255.255.0"
-
-  # Increment the reference count to this bridge.
-  def self.inc_bridge_ref(bridge)
-    if !File.exists?(BRIDGES)
-      `mkdir #{BRIDGES}`
-    end
-    count = 0
-
-    bridge_file = File.join(BRIDGES, bridge)
-    f = File.open(bridge_file, File::RDWR|File::CREAT, 0644)
-    f.flock(File::LOCK_EX)
-    if !f.eof?()
-      count = f.readline.to_i()
-    end
-    `echo #{count + 1} > #{bridge_file}`
-    f.close()
-  end
-
-  # Decrement the reference count to this bridge,
-  # destroying it if necessary.
-  def self.dec_bridge_ref(bridge)
-    bridge_file = File.join(BRIDGES, bridge)
-    if !File.exists?(bridge_file)
-      return
-    end
-    f = File.open(bridge_file, File::RDWR, 0644)
-    f.flock(File::LOCK_EX)
-    count = f.readline.to_i()
-    if count - 1 == 0
-      `ifconfig #{bridge} promisc down`
-      `brctl delbr #{bridge}`
-      `rm #{bridge_file}`
-    else
-      `echo #{count - 1} > #{bridge_file}`
-    end
-    f.close()
-  end
-
   # Default configuration data for each LXC container. More
   # configuration data is appended in xlxc-create.
   LXC_CONFIG_TEMPLATE =
@@ -129,11 +85,11 @@ iface lo inet loopback
 
 auto eth0
 iface eth0 inet static
-address 192.168.100.%d
-netmask 255.255.255.0
-network 192.168.100.0
-broadcast 192.168.100.255
-gateway 192.168.100.1
+    address %s 
+    netmask %s
+    network %s
+    broadcast %s
+    gateway %s
 "
 
   # Hosts file with a format tag for a unique hostname.

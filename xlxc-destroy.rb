@@ -15,8 +15,9 @@
 require 'fileutils'
 require 'optparse'
 require './xlxc'
+require './xlxc-bridge'
 
-USAGE = "Usage: ruby xlxc-destroy.rb {NAME START END | --delbrs}"
+USAGE = "Usage: ruby xlxc-destroy.rb -n name"
 
 # Parse the command and organize the options.
 #
@@ -26,9 +27,9 @@ def parse_opts()
   optparse = OptionParser.new do |opts|
     opts.banner = USAGE
 
-    options[:delbrs] = false
-    opts.on('-d', '--delbrs', 'Delete all Ethernet bridges') do
-      options[:delbrs] = true
+    options[:name] = nil
+    opts.on('-n', '--name ARG', 'Container name') do |name|
+      options[:name] = name
     end
 
   end
@@ -37,28 +38,19 @@ def parse_opts()
   return options
 end
 
-# Perform error checks on the parameters of the script and options
+# Perform error checks on the parameters of the script and options.
 #
-def check_for_errors(first, last, options)
-  if options[:delbrs]
-    puts("Deleting Ethernet bridges and quiting.")
-    `rm -rf #{XLXC::BRIDGES}`
-    exit
-  end
-
-  if ARGV.length != 3
-    puts(USAGE)
-    exit
-  end
-
-  if last < first
-    puts("End parameter cannot be less than start parameter.")
-    exit
-  end
-
+def check_for_errors(options)
   # Check that user is root.
   if Process.uid != 0
-    puts("xlxc-destroy must be run as root.")
+    puts("xlxc-destroy.rb must be run as root.")
+    exit
+  end
+
+  # Check that this container exists.
+  name = options[:name]
+  if name == nil
+    puts("Specify name for container.")
     exit
   end
 end
@@ -73,35 +65,28 @@ def destroy_fs(rootfs)
   `umount -l #{File.join(rootfs, XLXC::BIN)}`
 end
 
-# Destroy all containers beginning with name
-# and numbered from first to last.
+# Destroy a container.
 #
-def destroy(name, first, last)
-  for j in first..last
-    container = name + j.to_s()
+def destroy(options)
+  name = options[:name]
 
-    # Stop the container if it is still running.
-    `lxc-stop -n #{container} --kill`
+  # Stop the container if it is still running.
+  `lxc-stop -n #{name} --kill`
 
-    # Decrement reference count to the ethernet bridge.
-    XLXC.dec_bridge_ref(name)
+  # Decrement reference count to the Ethernet bridge.
+  f = File.open(File.join(XLXC::LXC, name, "bridge"), "r")
+  bridge = f.readline().strip()
+  f.close()
+  XLXC_BRIDGE.dec_bridge_refcnt(bridge)
 
-    rootfs = File.join(XLXC::LXC, container, "rootfs")
-    destroy_fs(rootfs)
-  end
+  destroy_fs(File.join(XLXC::LXC, name, "rootfs"))
 
-  for j in first..last
-    container = name + j.to_s()
-    `rm -rf #{File.join(XLXC::LXC, container)}`
-  end
+  `rm -rf #{File.join(XLXC::LXC, name)}`
 end
 
 
 if __FILE__ == $PROGRAM_NAME
-  name = ARGV[0]
-  first = ARGV[1].to_i()
-  last = ARGV[2].to_i()
   options = parse_opts()
-  check_for_errors(first, last, options)
-  destroy(name, first, last)
+  check_for_errors(options)
+  destroy(options)
 end

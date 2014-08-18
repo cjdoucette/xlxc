@@ -15,8 +15,11 @@
  
 require 'fileutils'
 require 'optparse'
+require 'rubygems'
+require 'netaddr'
+require 'ipaddr'
 require './xlxc'
-
+require './xlxc-bridge'
 
 # Directories that need to be directly copied (etc).
 LOCAL_ETC = "./etc"
@@ -29,9 +32,6 @@ HOME      = "/home/ubuntu"
 ROOT      = "/root"
 VAR_RUN   = "/var/run"
 
-# Directory that contains directories for interfaces.
-INTERFACES = "/sys/class/net"
-
 # Directories that hold XIA-related data.
 XIA       = "/etc/xia"
 XIA_HIDS  = File.join(XIA, "hid/prv")
@@ -40,7 +40,7 @@ XIA_HIDS  = File.join(XIA, "hid/prv")
 DEV_RANDOM   = "/dev/random"    # for HID principal in XIA
 DEV_URANDOM  = "/dev/urandom"   # for HID principal in XIA
 
-USAGE = "Usage: ruby xlxc-create.rb NAME START END GATEWAY [-rs]"
+USAGE = "Usage: ruby xlxc-create.rb [options]"
 
 # Parse the command and organize the options.
 #
@@ -50,13 +50,23 @@ def parse_opts()
   optparse = OptionParser.new do |opts|
     opts.banner = USAGE
 
+    options[:bridge] = nil
+    opts.on('-b', '--bridge ARG', 'Bridge name') do |bridge|
+      options[:bridge] = bridge
+    end
+
+    options[:name] = nil
+    opts.on('-n', '--name ARG', 'Container name') do |name|
+      options[:name] = name
+    end
+
     options[:reset] = false
-    opts.on('-r', '--reset', 'Reset containers and bridges') do
+    opts.on('-r', '--reset', 'Reset container') do
       options[:reset] = true
     end
 
     options[:script] = false
-    opts.on('-s', '--script', 'Create a script for each container') do
+    opts.on('-s', '--script', 'Create a script for this container') do
       options[:script] = true
     end
   end
@@ -67,26 +77,10 @@ end
 
 # Perform error checks on the parameters of the script and options
 #
-def check_for_errors(name, first, last, gw, options)
-  if ARGV.length != 4
-    puts(USAGE)
-    exit
-  end
-
-  if last < first
-    puts("End parameter cannot be less than start parameter.")
-    exit
-  end
-
+def check_for_errors(options)
   # Check that user is root.
   if Process.uid != 0
-    puts("xlxc-create must be run as root.")
-    exit
-  end
-
-  # Check to make sure gateway exists.
-  if !File.exists?(File.join(INTERFACES, gw))
-    puts("Host interface #{gw} does not exist.")
+    puts("xlxc-create.rb must be run as root.")
     exit
   end
 
@@ -97,17 +91,35 @@ def check_for_errors(name, first, last, gw, options)
     exit
   end
 
-  # Check that there are no conflicts in container names.
-  for i in first..last
-    container = File.join(XLXC::LXC, name + i.to_s())
-    if options[:reset] && !File.exist?(container)
-      puts("Container #{container} does not exist.")
-    end
-    if !options[:reset] && File.exist?(container)
-      puts("Naming conflict: container #{container} " +
-           "already exists in #{XLXC::LXC}.")
-      exit
-    end
+  # Check that there are no conflicts with the container name.
+  name = options[:name]
+
+  if name == nil
+    puts("Specify name for container using -n or --name.")
+    exit
+  end
+
+  container = File.join(XLXC::LXC, name)
+  if options[:reset] && !File.exist?(container)
+    puts("Container #{container} does not exist.")
+    exit
+  end
+
+  if !options[:reset] && File.exist?(container)
+    puts("Container #{container} already exists in #{XLXC::LXC}.")
+    exit
+  end
+
+  # Check that the bridge exists.
+  bridge = options[:bridge]
+  if bridge == nil
+    puts("Specify name for bridge using -b or --bridge.")
+    exit
+  end
+
+  if !File.exist?(File.join(XLXC_BRIDGE::BRIDGES, bridge))
+    puts("Bridge #{bridge} does not exist.")
+    exit
   end
 end
 
@@ -125,48 +137,6 @@ def bind_mount(src, dst, isDir, readOnly)
   if readOnly 
     `mount -o remount,ro #{dst}`
   end
-end
-
-# Copy a default LXC configuration file and add configuration
-# information for it that is specific to this container, such
-# as a network interface, hardware address, and bind mounts.
-#
-def config_lxc(bridge, name, i)
-  container_name = name + i.to_s()
-  container = File.join(XLXC::LXC, container_name)
-  rootfs = File.join(container, "rootfs")
-  config = File.join(container, "config")
-  fstab = File.join(container, "fstab")
-
-  # Set up container config file.
-  open(config, 'w') { |f|
-    f.puts(XLXC::LXC_CONFIG_TEMPLATE)
-    f.puts("lxc.network.link=#{bridge}\n"                       \
-           "lxc.network.veth.pair=#{container_name}veth\n"      \
-           "lxc.rootfs=#{rootfs}\n"                             \
-           "lxc.utsname=#{container_name}\n"                    \
-           "lxc.mount=#{fstab}")
-  }
-
-  # Set up container fstab file.
-  open(fstab, 'w') { |f|
-    f.puts(XLXC::FSTAB_TEMPLATE)
-  }
-
-  # Set up container interfaces file (bypass DHCP).
-  open(File.join(rootfs, XLXC::INTERFACES_FILE), 'w') { |f|
-    f.puts(sprintf(XLXC::INTERFACES_TEMPLATE, i + 1))
-  }
-
-  # Set up container hosts files.
-  open(File.join(rootfs, XLXC::HOSTS_FILE), 'w') { |f|
-    f.puts(sprintf(XLXC::HOSTS_TEMPLATE, name + i.to_s()))
-  }
-
-  open(File.join(rootfs, XLXC::HOSTNAME_FILE), 'w') { |f|
-    f.puts(name + i.to_s())
-  }
-
 end
 
 # Perform bind mounts necessary to run container.
@@ -222,62 +192,114 @@ def create_script(container_name)
   `chmod +x #{script}`
 end
 
-# Configure the ethernet bridge to a container.
+# Copy a default LXC configuration file and add configuration
+# information for it that is specific to this container, such
+# as a network interface, hardware address, and bind mounts.
 #
-def config_bridge(bridge, gw)
-  `brctl addbr #{bridge}`
-  `brctl setfd #{bridge} 0`
-  `ifconfig #{bridge} #{XLXC::DEF_PRIVATE_GW} \
-   netmask #{XLXC::DEF_PRIVATE_NETMASK} promisc up`
-  `iptables -t nat -A POSTROUTING -o #{gw} -j MASQUERADE`
-  `echo 1 > /proc/sys/net/ipv4/ip_forward`
+def config_container(bridge, name)
+  container = File.join(XLXC::LXC, name)
+  rootfs = File.join(container, "rootfs")
+  config = File.join(container, "config")
+  fstab = File.join(container, "fstab")
+  bridge_file = File.join(container, "bridge")
+
+  # Set up container config file.
+  open(config, 'w') { |f|
+    f.puts(XLXC::LXC_CONFIG_TEMPLATE)
+    f.puts("lxc.network.link=#{bridge}\n"                       \
+           "lxc.network.veth.pair=#{name}veth\n"                \
+           "lxc.rootfs=#{rootfs}\n"                             \
+           "lxc.utsname=#{name}\n"                              \
+           "lxc.mount=#{fstab}")
+  }
+
+  # Set up container fstab file.
+  open(fstab, 'w') { |f|
+    f.puts(XLXC::FSTAB_TEMPLATE)
+  }
+
+  # Set up container interfaces file (bypass DHCP).
+  cidr = nil
+  open(File.join(XLXC_BRIDGE::BRIDGES, bridge, "cidr"), 'r') { |f|
+    cidr = NetAddr::CIDR.create(f.readline().strip())
+  }
+
+  # TODO: lock bridge file while looking for a new address.
+
+  gateway = cidr.nth(1)
+  broadcast = cidr.last()
+  network = cidr.network()
+  netmask = IPAddr.new('255.255.255.255').mask(cidr.bits()).to_s()
+  address = nil
+  addresses = cidr.range(2)
+
+  containers_dir = File.join(XLXC_BRIDGE::BRIDGES, bridge, "containers")
+  containers = Dir.entries(containers_dir)
+
+  for addr in addresses
+    addrFound = false
+    for cont in containers
+      next if cont == '.' or cont == '..'
+      open(File.join(containers_dir, cont), 'r') { |f|
+        container_address = f.readline().strip()
+        if address == container_address
+          addrFound = true
+          break
+        end
+      }
+    end
+
+    if !addrFound
+      `echo #{addr} > #{File.join(containers_dir, name)}`
+      `echo #{bridge} > #{bridge_file}`
+      XLXC_BRIDGE.inc_bridge_refcnt(bridge)
+      address = addr
+      break
+    end
+  end
+
+  open(File.join(rootfs, XLXC::INTERFACES_FILE), 'w') { |f|
+    f.puts(sprintf(XLXC::INTERFACES_TEMPLATE, address, netmask, network,
+      broadcast, gateway))
+  }
+
+  # Set up container hosts files.
+  open(File.join(rootfs, XLXC::HOSTS_FILE), 'w') { |f|
+    f.puts(sprintf(XLXC::HOSTS_TEMPLATE, name))
+  }
+
+  open(File.join(rootfs, XLXC::HOSTNAME_FILE), 'w') { |f|
+    f.puts(name)
+  }
+
 end
 
-# Create or reset containers and ethernet bridges.
-#
-def setup_bridge_and_containers(name, first, last, gw, options)
+def setup_container(options)
+  name = options[:name]
+  bridge = options[:bridge]
 
-  bridge = name + "br"
-
-  if !options[:reset]
+  if options[:reset]
+    do_bind_mounts(File.join(XLXC::LXC, name, "rootfs"))
+  else
     `cp -R #{XIA} #{LOCAL_ETC}`
-  end
 
-  # Add ethernet bridge for these containers, if necessary.
-  config_bridge(bridge, gw)
+    # Create filesystem for container.
+    create_fs(File.join(XLXC::LXC, name, "rootfs"))
 
-  for i in first..last
-    container_name = name + i.to_s()
-    if options[:reset]
-      do_bind_mounts(File.join(XLXC::LXC, container_name, "rootfs"))
-    else
-      # Create filesystem for container.
-      create_fs(File.join(XLXC::LXC, container_name, "rootfs"))
+    # Configure the container.
+    config_container(bridge, name)
 
-      # Configure the container.
-      config_lxc(bridge, name, i)
-
-      if options[:script]
-        create_script(container_name)
-      end
-
+    if options[:script]
+      create_script(container_name)
     end
-    XLXC.inc_bridge_ref(bridge)
-  end
 
-  if !options[:reset]
     `rm -rf #{File.join(LOCAL_ETC, "xia")}`
   end
 
 end
 
 if __FILE__ == $PROGRAM_NAME
-  name = ARGV[0]
-  first = ARGV[1].to_i()
-  last = ARGV[2].to_i()
-  gw = ARGV[3]
-
   options = parse_opts()
-  check_for_errors(name, first, last, gw, options)
-  setup_bridge_and_containers(name, first, last, gw, options)
+  check_for_errors(options)
+  setup_container(options)
 end
