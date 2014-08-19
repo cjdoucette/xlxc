@@ -235,13 +235,14 @@ def config_container(bridge, name)
     addrFound = false
     for cont in containers
       next if cont == '.' or cont == '..'
+      container_address = nil
       open(File.join(containers_dir, cont), 'r') { |f|
         container_address = f.readline().strip()
-        if address == container_address
-          addrFound = true
-          break
-        end
       }
+      if addr == container_address
+        addrFound = true
+        break
+      end
     end
 
     if !addrFound

@@ -176,7 +176,7 @@ class XLXC_BRIDGE
     gw = options[:gw]
 
     cidr = NetAddr::CIDR.create(options[:ip])
-    addr = cidr.ip()
+    addr = cidr.nth(1)
     netmask = IPAddr.new('255.255.255.255').mask(cidr.bits()).to_s()
 
     `brctl addbr #{name}`

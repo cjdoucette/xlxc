@@ -78,7 +78,9 @@ def destroy(options)
   destroy_fs(File.join(XLXC::LXC, name, "rootfs"))
 
   `rm -rf #{File.join(XLXC::LXC, name)}`
-  `rm #{File.join(XLXC_BRIDGE::BRIDGES, bridge, "containers", name)}`
+  if File.exists?(File.join(XLXC_BRIDGE::BRIDGES, bridge, "containers", name))
+    `rm #{File.join(XLXC_BRIDGE::BRIDGES, bridge, "containers", name)}`
+  end
 end
 
 
