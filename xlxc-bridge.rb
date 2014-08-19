@@ -23,10 +23,10 @@ class XLXC_BRIDGE
   BRIDGES = File.join(Dir.pwd(), "bridges")
 
   USAGE =
-  "Usage:"                                                                    \
+  "\nUsage:"                                                                  \
     "\truby xlxc-bridge.rb -n name --add --gw host-gw-iface --ip bridge-cidr" \
     "\n\tOR\n"                                                                \
-    "\truby xlxc-bridge.rb -n name --del [--force]"
+    "\truby xlxc-bridge.rb -n name --del [--force]\n\n"
 
   # Parse the command and organize the options.
   #
@@ -88,8 +88,8 @@ class XLXC_BRIDGE
 
     gateway = options[:gw]
     if options[:add] and (options[:gw] == nil or options[:ip] == nil)
-      puts("Specify host gateway interface and IPv4 address of the bridge\n" \
-           "using CIDR notation.")
+      puts("Specify host gateway interface and IPv4 address\n" \
+           "of the bridge using CIDR notation.")
       exit
     end
 
@@ -203,9 +203,10 @@ class XLXC_BRIDGE
     }
 
     if !force and refcnt != 0
-      puts("At least one container is using this bridge. Use --force to " \
-           "delete the bridge, potentially corrupting the networks for "  \
-           "the following containers that use bridge:")
+      puts("At least one container is using this bridge.\n"  \
+           "Use --force to delete the bridge, potentially\n"   \
+           "corrupting the networks for the containers that\n" \
+           "use this bridge:")
       Dir.foreach(File.join(BRIDGES, name, "containers")) do |item|
         next if item == '.' or item == '..'
         puts("\t" + item)

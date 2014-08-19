@@ -1,15 +1,9 @@
 #
-# xlxc-create: create XIA-linux containers
+# xlxc-create: create Linux XIA containers
 #
 # Author: Cody Doucette <doucette@bu.edu>
 #
-# This Ruby script creates and initializes a given number of IP or XIA linux
-# containers. Each container uses a separate network bridge to the host.
-#
-# This script is based on the lxc-create and lxc-ubuntu scripts written by:
-#     Daniel Lezcano <daniel.lezcano@free.fr>     (lxc-create)
-#     Serge Hallyn   <serge.hallyn@canonical.com> (lxc-ubuntu)
-#     Wilhelm Meier  <wilhelm.meier@fh-kl.de>     (lxc-ubuntu)
+# This Ruby script creates and initializes a Linux XIA container.
 #
 
  
@@ -21,26 +15,29 @@ require 'ipaddr'
 require './xlxc'
 require './xlxc-bridge'
 
-# Directories that need to be directly copied (etc).
+
+# Directories that need to be directly copied.
 LOCAL_ETC = "./etc"
 
 # Directories that are initially empty, but need to be created.
-PROC      = "/proc"
-SYS       = "/sys"
-DEV_PTS   = "/dev/pts"
-HOME      = "/home/ubuntu"
-ROOT      = "/root"
-VAR_RUN   = "/var/run"
+INITIALLY_EMPTY_DIRECTORIES = [
+  "/proc",
+  "/sys",
+  "/dev/pts",
+  "/home/ubuntu",
+  "/root",
+  "/var/run"
+]
+
+# Character special files that need to be created.
+DEV_RANDOM   = "/dev/random"    # for HID principal in XIA
+DEV_URANDOM  = "/dev/urandom"   # for HID principal in XIA
 
 # Directories that hold XIA-related data.
 XIA       = "/etc/xia"
 XIA_HIDS  = File.join(XIA, "hid/prv")
 
-# Other files that need to be created.
-DEV_RANDOM   = "/dev/random"    # for HID principal in XIA
-DEV_URANDOM  = "/dev/urandom"   # for HID principal in XIA
-
-USAGE = "Usage: ruby xlxc-create.rb [options]"
+USAGE = "\nUsage: ruby xlxc-create.rb [options]\n\n"
 
 # Parse the command and organize the options.
 #
@@ -158,21 +155,19 @@ def create_fs(rootfs)
   # Bind mount (read-only) directories from host.
   do_bind_mounts(rootfs)
 
-  # Create dev directory and necessary files (pts, random, urandom).
-  FileUtils.mkdir_p(File.join(rootfs, DEV_PTS))
-  `mknod #{File.join(rootfs, DEV_RANDOM)} c 1 8`
-  `mknod #{File.join(rootfs, DEV_URANDOM)} c 1 9`
-
   # Copy local etc to containers.
   `cp -R #{LOCAL_ETC} #{rootfs}`
 
   # Create necessary directories that are initially empty.
-  FileUtils.mkdir_p(File.join(rootfs, PROC))
-  FileUtils.mkdir_p(File.join(rootfs, SYS))
-  FileUtils.mkdir_p(File.join(rootfs, HOME))
-  FileUtils.mkdir_p(File.join(rootfs, ROOT))
-  FileUtils.mkdir_p(File.join(rootfs, VAR_RUN))
+  for dir in INITIALLY_EMPTY_DIRECTORIES
+    FileUtils.mkdir_p(File.join(rootfs, dir))
+  end
 
+  # Create dev directory and necessary files (pts, random, urandom).
+  `mknod #{File.join(rootfs, DEV_RANDOM)} c 1 8`
+  `mknod #{File.join(rootfs, DEV_URANDOM)} c 1 9`
+
+  # Remove root password.
   `chroot #{rootfs} passwd -d root`
 end
 
@@ -274,6 +269,8 @@ def config_container(bridge, name)
 
 end
 
+# Setup a container with the given options.
+#
 def setup_container(options)
   name = options[:name]
   bridge = options[:bridge]

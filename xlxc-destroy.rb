@@ -1,14 +1,9 @@
 #
-# xlxc-destroy: destroy XIA-linux containers
+# xlxc-destroy: destroy Linux XIA containers
 #
 # Author: Cody Doucette <doucette@bu.edu>
 #
-# This Ruby script stops and destroys a given number of IP or XIA linux
-# containers. Each container uses a separate network bridge to the host,
-# and this script destroys those bridges as well.
-#
-# This script is based on the lxc-destroy script written by:
-#     Daniel Lezcano <daniel.lezcano@free.fr>
+# This Ruby script stops and destroys a Linux XIA container.
 #
 
 
@@ -17,7 +12,8 @@ require 'optparse'
 require './xlxc'
 require './xlxc-bridge'
 
-USAGE = "Usage: ruby xlxc-destroy.rb -n name"
+
+USAGE = "\nUsage: ruby xlxc-destroy.rb -n name\n\n"
 
 # Parse the command and organize the options.
 #
