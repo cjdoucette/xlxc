@@ -14,6 +14,7 @@ require 'rubygems'
 require 'netaddr'
 require 'ipaddr'
 
+
 class XLXC_BRIDGE
 
   # Directory that contains directories for interfaces.
@@ -186,6 +187,7 @@ class XLXC_BRIDGE
 
     `mkdir -p #{File.join(BRIDGES, name)}`
     `echo 0 > #{File.join(BRIDGES, name, "refcnt")}`
+    `echo #{gw} > #{File.join(BRIDGES, name, "iface")}`
     `echo #{cidr.to_s()} > #{File.join(BRIDGES, name, "cidr")}`
     `mkdir #{File.join(BRIDGES, name, "containers")}`
   end
@@ -209,7 +211,7 @@ class XLXC_BRIDGE
            "use this bridge:")
       Dir.foreach(File.join(BRIDGES, name, "containers")) do |item|
         next if item == '.' or item == '..'
-        puts("\t" + item)
+        puts("  " + item)
       end
       return
     end
