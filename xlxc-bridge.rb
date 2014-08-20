@@ -122,43 +122,6 @@ class XLXC_BRIDGE
     end
   end
 
-  # Increment the reference count to this bridge.
-  #
-  def self.inc_bridge_refcnt(name)
-    bridge_dir = File.join(BRIDGES, name)
-    if !File.exists?(bridge_dir)
-      return
-    end
-
-    bridge_refcnt_file = File.join(bridge_dir, "refcnt")
-    open(bridge_refcnt_file, 'r') { |f|
-      f.flock(File::LOCK_EX)
-      count = f.readline.to_i()
-      `echo #{count + 1} > #{bridge_refcnt_file}`
-      f.close()
-    }
-  end
-
-  # Decrement the reference count to this bridge,
-  # destroying it if necessary.
-  #
-  def self.dec_bridge_refcnt(name)
-    bridge_dir = File.join(BRIDGES, name)
-    if !File.exists?(bridge_dir)
-      return
-    end
-
-    bridge_refcnt_file = File.join(bridge_dir, "refcnt")
-    open(bridge_refcnt_file, 'r') { |f|
-      f.flock(File::LOCK_EX)
-      count = f.readline.to_i()
-      if count > 0
-        `echo #{count - 1} > #{bridge_refcnt_file}`
-      end
-      f.close()
-    }
-  end
-
   # Given the name of a container, fetch the bridge it uses.
   #
   def self.get_bridge(name)
@@ -275,7 +238,6 @@ class XLXC_BRIDGE
     add_interface(bridge, cidr, gateway_iface)
 
     `mkdir -p #{File.join(BRIDGES, bridge)}`
-    `echo 0 > #{File.join(BRIDGES, bridge, "refcnt")}`
     `echo #{gateway_iface} > #{File.join(BRIDGES, bridge, "iface")}`
     `echo #{cidr.to_s()} > #{File.join(BRIDGES, bridge, "cidr")}`
     `mkdir #{File.join(BRIDGES, bridge, "containers")}`
@@ -287,17 +249,14 @@ class XLXC_BRIDGE
     name = options[:name]
     force = options[:force]
 
-    bridge_dir = File.join(BRIDGES, name)
-    refcnt = -1
-    open(File.join(bridge_dir, "refcnt"), 'r') { |f|
-      refcnt = f.readline.to_i()
-    }
-
-    if !force and refcnt != 0
+    cont_dir = File.join(BRIDGES, name, "containers")
+    # Remove '.' and '..' files in directory.
+    size = Dir.entries(cont_dir).size() - 2
+    if !force and size != 0
       puts("At least one container is using this bridge.\n"  \
-           "Use --force to delete the bridge, potentially\n"   \
-           "corrupting the networks for the containers that\n" \
-           "use this bridge:")
+           "Use --force to delete the bridge, potentially\n" \
+           "corrupting the networks for these containers\n"  \
+           "that use this bridge:")
       Dir.foreach(File.join(BRIDGES, name, "containers")) do |item|
         next if item == '.' or item == '..'
         puts("  " + item)

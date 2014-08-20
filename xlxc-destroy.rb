@@ -71,7 +71,6 @@ def destroy(options)
   f = File.open(File.join(XLXC::LXC, name, "bridge"), "r")
   bridge = f.readline().strip()
   f.close()
-  XLXC_BRIDGE.dec_bridge_refcnt(bridge)
 
   destroy_fs(File.join(XLXC::LXC, name, "rootfs"))
 
