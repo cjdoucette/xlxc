@@ -124,7 +124,7 @@ end
 def create_connected_network(name, size, iface)
   bridge = name + "br"
   cidr = get_cidr_big_enough(size)
-  `ruby xlxc-bridge.rb -b #{bridge} --add --gw #{iface} --ip #{cidr}`
+  `ruby xlxc-bridge.rb -b #{bridge} --add --iface #{iface} --cidr #{cidr}`
   for i in 0..(size - 1)
     `ruby xlxc-create.rb -n #{name + i.to_s()} -b #{bridge}`
   end
@@ -137,7 +137,7 @@ def create_star_network(name, size, iface)
   for i in 0..(size - 1)
     bridge = name + i.to_s() + "br"
     cidr = get_cidr_big_enough(10)
-    `ruby xlxc-bridge.rb -b #{bridge} --add --gw #{iface} --ip #{cidr}`
+    `ruby xlxc-bridge.rb -b #{bridge} --add --iface #{iface} --cidr #{cidr}`
     `ruby xlxc-create.rb -n #{name + i.to_s()} -b #{bridge}`
   end
 end

@@ -24,9 +24,9 @@ class XLXC_BRIDGE
   BRIDGES = File.join(Dir.pwd(), "bridges")
 
   USAGE =
-  "\nUsage:"                                                                  \
-  "\truby xlxc-bridge.rb -b bridge --add --gw host-gw-iface --ip bridge-cidr" \
-  "\n\tOR\n"                                                                  \
+  "\nUsage:"                                                        \
+  "\truby xlxc-bridge.rb -b bridge --add --iface iface --cidr cidr" \
+  "\n\tOR\n"                                                        \
   "\truby xlxc-bridge.rb -b bridge --del [--force]\n\n"
 
   # Parse the command and organize the options.
@@ -47,6 +47,11 @@ class XLXC_BRIDGE
         options[:bridge] = bridge
       end
 
+      options[:cidr] = nil
+      opts.on('-c', '--cidr ARG', 'Bridge IPv4 address in CIDR') do |cidr|
+        options[:cidr] = cidr
+      end
+
       options[:delete] = false
       opts.on('-d', '--del', 'Delete a bridge') do
         options[:delete] = true
@@ -57,14 +62,9 @@ class XLXC_BRIDGE
         options[:force] = true
       end
 
-      options[:gw] = nil
-      opts.on('-g', '--gw ARG', 'Gateway interface on host') do |gw|
-        options[:gw] = gw
-      end
-
-      options[:ip] = nil
-      opts.on('-i', '--ip ARG', 'Bridge IPv4 address in CIDR notation') do |ip|
-        options[:ip] = ip
+      options[:iface] = nil
+      opts.on('-i', '--iface ARG', 'Gateway interface on host') do |iface|
+        options[:iface] = iface
       end
     end
 
@@ -87,8 +87,8 @@ class XLXC_BRIDGE
       exit
     end
 
-    gateway = options[:gw]
-    if options[:add] and (options[:gw] == nil or options[:ip] == nil)
+    gateway_iface = options[:iface]
+    if options[:add] and (options[:iface] == nil or options[:cidr] == nil)
       puts("Specify host gateway interface and IPv4 address\n" \
            "of the bridge using CIDR notation.")
       exit
@@ -232,8 +232,8 @@ class XLXC_BRIDGE
   #
   def self.add_bridge(options)
     bridge = options[:bridge]
-    gateway_iface = options[:gw]
-    cidr = NetAddr::CIDR.create(options[:ip])
+    gateway_iface = options[:iface]
+    cidr = NetAddr::CIDR.create(options[:cidr])
 
     add_interface(bridge, cidr, gateway_iface)
 
