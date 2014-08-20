@@ -134,22 +134,6 @@ def create_bridge_if_needed(name)
   end
 end
 
-# Bind mount a source file to a destination file.
-#
-def bind_mount(src, dst, isDir, readOnly)
-  if isDir
-    FileUtils.mkdir_p(dst)
-  else
-    FileUtils.touch(dst)
-  end
-
-  `mount --rbind #{src} #{dst}`
-
-  if readOnly 
-    `mount -o remount,ro #{dst}`
-  end
-end
-
 # Perform bind mounts necessary to run container.
 #
 def bind_mount_if_needed(name)
@@ -159,7 +143,7 @@ def bind_mount_if_needed(name)
   for dir in XLXC::BIND_MOUNTED_DIRECTORIES
     if !Dir.exists?(File.join(rootfs, dir)) ||
        Dir.entries(File.join(rootfs, dir)).size() <= 2
-      bind_mount(dir, File.join(rootfs, dir), true, true)
+      XLXC.bind_mount(dir, File.join(rootfs, dir), true, true)
     end
   end
 end

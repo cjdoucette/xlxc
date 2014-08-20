@@ -11,13 +11,29 @@ class XLXC
   LXC = "/var/lib/lxc"
 
   # Directories that are bind mounted (read-only) from the host.
-BIND_MOUNTED_DIRECTORIES = [
-  "/bin",
-  "/lib64",
-  "/lib",
-  "/sbin",
-  "/usr"
-]
+  BIND_MOUNTED_DIRECTORIES = [
+    "/bin",
+    "/lib64",
+    "/lib",
+    "/sbin",
+    "/usr"
+  ]
+
+  # Bind mount a source file to a destination file.
+  #
+  def self.bind_mount(src, dst, isDir, readOnly)
+    if isDir
+      FileUtils.mkdir_p(dst)
+    else
+      FileUtils.touch(dst)
+    end
+
+    `mount --rbind #{src} #{dst}`
+
+    if readOnly 
+      `mount -o remount,ro #{dst}`
+    end
+  end
 
   # Default configuration data for each LXC container. More
   # configuration data is appended in xlxc-create.

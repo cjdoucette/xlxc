@@ -120,38 +120,15 @@ def check_for_errors(options)
   end
 end
 
-# Bind mount a source file to a destination file.
-#
-def bind_mount(src, dst, isDir, readOnly)
-  if isDir
-    FileUtils.mkdir_p(dst)
-  else
-    FileUtils.touch(dst)
-  end
-
-  `mount --rbind #{src} #{dst}`
-
-  if readOnly 
-    `mount -o remount,ro #{dst}`
-  end
-end
-
-# Perform bind mounts necessary to run container.
-#
-def do_bind_mounts(rootfs)
-  # Bind mount (read-only) directories from host.
-  for dir in XLXC::BIND_MOUNTED_DIRECTORIES
-    bind_mount(dir, File.join(rootfs, dir), true, true)
-  end
-end
-
 # Create container filesystem by bind mounting from host.
 #
 def create_fs(rootfs)
   FileUtils.mkdir_p(rootfs)
 
   # Bind mount (read-only) directories from host.
-  do_bind_mounts(rootfs)
+  for dir in XLXC::BIND_MOUNTED_DIRECTORIES
+    XLXC.bind_mount(dir, File.join(rootfs, dir), true, true)
+  end
 
   # Copy local etc to containers.
   `cp -R #{LOCAL_ETC} #{rootfs}`
