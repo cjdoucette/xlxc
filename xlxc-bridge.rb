@@ -95,8 +95,8 @@ class XLXC_BRIDGE
     end
 
     # Check to make sure gateway interface exists, if adding.
-    if options[:add] and !File.exists?(File.join(INTERFACES, gateway))
-      puts("Host interface #{gateway} does not exist.")
+    if options[:add] and !File.exists?(File.join(INTERFACES, gateway_iface))
+      puts("Host interface #{gateway_iface} does not exist.")
       exit
     end
 
@@ -151,6 +151,50 @@ class XLXC_BRIDGE
     }
     return iface
   end
+
+  # Find a free CIDR block for this bridge.
+  # TODO: lock the bridge file.
+  #
+  def self.get_free_cidr_block(size)
+    # Skip network address and gateway address.
+    cidr_to_try = NetAddr::CIDR.create("192.168.0.0/24")
+    cidr_size = 255
+    if size > 254
+      cidr_to_try = NetAddr::CIDR.create("192.0.0.0/16")
+      cidr_size = 65535
+    end
+
+    bridges = Dir.entries(BRIDGES)
+
+    for i in 1..cidr_size
+      cidr_already_allocated = false
+      cidr_to_try = cidr_to_try.next_subnet(:Objectify => true)
+
+      for bridge in bridges
+        next if bridge == '.' or bridge == '..'
+
+        existing_cidr = nil
+        open(File.join(BRIDGES, bridge, "cidr"), 'r') { |f|
+          existing_cidr = f.readline().strip()
+        }
+
+        if cidr_to_try.to_s() == existing_cidr
+          cidr_already_allocated = true
+          break
+        end
+      end
+
+      if !cidr_already_allocated
+        return cidr_to_try
+      end
+
+    end
+
+    # All CIDR blocks have been allocated.
+    return nil
+  end
+
+
 
   # Find a free IP address for this bridge.
   # TODO: lock the bridge file.

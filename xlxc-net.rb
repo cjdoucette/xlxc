@@ -63,6 +63,11 @@ def check_for_errors(options)
     exit
   end
 
+  if size > 65534
+    puts("The size of the network must be less than 65535.")
+    exit
+  end
+
   # Check that there are no conflicts with the container name.
   name = options[:name]
   if name == nil
@@ -97,7 +102,7 @@ def check_for_errors(options)
     for i in 0..(size - 1)
       if Dir.entries(XLXC_BRIDGE::BRIDGES).include?(name + i.to_s() + "br") ||
          Dir.entries(XLXC_BRIDGE::INTERFACES).include?(name + i.to_s() + "br")
-        puts("Bridge #{name + i.to_s() + "br"} is already in use, so this\n"
+        puts("Bridge #{name + i.to_s() + "br"} is already in use, so this\n" \
              "naming scheme cannot be used.")
         exit
       end
@@ -106,16 +111,9 @@ def check_for_errors(options)
 
   iface = options[:iface]
   if iface == nil
-    puts("Specify host's gateway interface.")
+    puts("Specify host's gateway interface using -i or --iface.")
     exit
   end
-end
-
-# Returns a unique CIDR address large enough to contain @size
-# IP addresses.
-#
-def get_cidr_big_enough(size)
-  return "192.168.100.0/24"
 end
 
 # Creates a connected network of Linux XIA containrs, where each
@@ -123,8 +121,8 @@ end
 #
 def create_connected_network(name, size, iface)
   bridge = name + "br"
-  cidr = get_cidr_big_enough(size)
-  `ruby xlxc-bridge.rb -b #{bridge} --add --iface #{iface} --cidr #{cidr}`
+  cidr_str = XLXC_BRIDGE.get_free_cidr_block(size).to_s()
+  `ruby xlxc-bridge.rb -b #{bridge} --add --iface #{iface} --cidr #{cidr_str}`
   for i in 0..(size - 1)
     `ruby xlxc-create.rb -n #{name + i.to_s()} -b #{bridge}`
   end
@@ -136,8 +134,8 @@ end
 def create_star_network(name, size, iface)
   for i in 0..(size - 1)
     bridge = name + i.to_s() + "br"
-    cidr = get_cidr_big_enough(10)
-    `ruby xlxc-bridge.rb -b #{bridge} --add --iface #{iface} --cidr #{cidr}`
+    cidr_str = XLXC_BRIDGE.get_free_cidr_block(size).to_s()
+    `ruby xlxc-bridge.rb -b #{bridge} --add --iface #{iface} --cidr #{cidr_str}`
     `ruby xlxc-create.rb -n #{name + i.to_s()} -b #{bridge}`
   end
 end
