@@ -13,7 +13,7 @@ require 'optparse'
 require 'rubygems'
 require 'netaddr'
 require 'ipaddr'
-
+require './xlxc'
 
 class XLXC_BRIDGE
 
@@ -122,36 +122,6 @@ class XLXC_BRIDGE
     end
   end
 
-  def self.get_ip_addr(name, bridge, cidr)
-    address = nil
-    addresses = cidr.range(2)
-
-    containers_dir = File.join(XLXC_BRIDGE::BRIDGES, bridge, "containers")
-    containers = Dir.entries(containers_dir)
-
-    for addr in addresses
-      addrFound = false
-      for cont in containers
-        next if cont == '.' or cont == '..'
-        container_address = nil
-        open(File.join(containers_dir, cont), 'r') { |f|
-          container_address = f.readline().strip()
-        }
-        if addr == container_address
-          addrFound = true
-          break
-        end
-      end
-
-      if !addrFound
-        return addr
-      end
-
-    end
-    return nil
-  end
-
-
   # Increment the reference count to this bridge.
   #
   def self.inc_bridge_refcnt(name)
@@ -167,16 +137,6 @@ class XLXC_BRIDGE
       `echo #{count + 1} > #{bridge_refcnt_file}`
       f.close()
     }
-  end
-
-  # Delete a bridge by removing it from the list
-  # of interfaces and removing any configuration
-  # information.
-  #
-  def self.__delete_bridge(name)
-    `ifconfig #{name} promisc down`
-    `brctl delbr #{name}`
-    `rm -r #{File.join(BRIDGES, name)}`
   end
 
   # Decrement the reference count to this bridge,
@@ -199,27 +159,126 @@ class XLXC_BRIDGE
     }
   end
 
+  # Given the name of a container, fetch the bridge it uses.
+  #
+  def self.get_bridge(name)
+    bridge = nil
+    open(File.join(XLXC::LXC, name, "bridge"), 'r') { |f|
+      bridge = f.readline().strip()
+    }
+    return bridge
+  end
+
+  # Get CIDR address of Ethernet bridge.
+  #
+  def self.get_bridge_cidr(bridge)
+    cidr = nil
+    open(File.join(XLXC_BRIDGE::BRIDGES, bridge, "cidr"), 'r') { |f|
+      cidr = NetAddr::CIDR.create(f.readline().strip())
+    }
+    return cidr
+  end
+
+  # Get gateway interface of host for Ethernet bridge.
+  #
+  def self.get_bridge_iface(bridge)
+    iface = nil
+    open(File.join(XLXC_BRIDGE::BRIDGES, bridge, "iface"), 'r') { |f|
+      iface = f.readline().strip()
+    }
+    return iface
+  end
+
+  # Find a free IP address for this bridge.
+  # TODO: lock the bridge file.
+  #
+  def self.get_free_ip_address(name, bridge, cidr)
+    # Skip network address and gateway address.
+    potential_addresses = cidr.range(2)
+    containers_dir = File.join(BRIDGES, bridge, "containers")
+    containers = Dir.entries(containers_dir)
+
+    for address_to_try in potential_addresses
+      address_already_allocated = false
+
+      for cont in containers
+        next if cont == '.' or cont == '..'
+
+        existing_ip_address = nil
+        open(File.join(containers_dir, cont), 'r') { |f|
+          existing_ip_address = f.readline().strip()
+        }
+
+        if address_to_try == existing_ip_address
+          address_already_allocated = true
+          break
+        end
+      end
+
+      if !address_already_allocated
+        return address_to_try
+      end
+
+    end
+
+    # All addresses have been allocated.
+    return nil
+  end
+
+  # Add the allocated IP address to the /etc/network/interfaces file
+  # and document this address in the BRIDGES directory.
+  #
+  def self.add_ip_address_to_container(name, bridge, cidr, address)
+    # Assume gateway address is at index 1 (second available address).
+    gateway = cidr.nth(1)
+    broadcast = cidr.last()
+    network = cidr.network()
+    netmask = IPAddr.new('255.255.255.255').mask(cidr.bits()).to_s()
+
+    rootfs = File.join(XLXC::LXC, name, "rootfs")
+    open(File.join(rootfs, XLXC::INTERFACES_FILE), 'w') { |f|
+      f.puts(sprintf(XLXC::INTERFACES_TEMPLATE, address, netmask, network,
+        broadcast, gateway))
+    }
+
+    `echo #{address} > #{File.join(BRIDGES, bridge, "containers", name)}`
+  end
+
+  # Find a free IP address for this bridge and add it to the container.
+  #
+  def self.alloc_ip_address_from_bridge(name, bridge)
+    cidr = get_bridge_cidr(bridge)
+    address = get_free_ip_address(name, bridge, cidr)
+    add_ip_address_to_container(name, cidr, address)
+  end
+
+  # Add bridge interface using bridge-utils.
+  #
+  def self.add_interface(bridge, cidr, gateway_iface)
+    gateway_address = cidr.nth(1)
+    netmask = IPAddr.new('255.255.255.255').mask(cidr.bits()).to_s()
+
+    `brctl addbr #{bridge}`
+    `brctl setfd #{bridge} 0`
+    `ifconfig #{bridge} #{gateway_address} netmask #{netmask} promisc up`
+    `iptables -t nat -A POSTROUTING -o #{gateway_iface} -j MASQUERADE`
+    `echo 1 > /proc/sys/net/ipv4/ip_forward`
+  end
+
   # Add an Ethernet bridge, if it does not already exist.
   #
   def self.add_bridge(options)
-    name = options[:name]
-    gw = options[:gw]
-
+    bridge = options[:name]
+    gateway_iface = options[:gw]
     cidr = NetAddr::CIDR.create(options[:ip])
-    addr = cidr.nth(1)
-    netmask = IPAddr.new('255.255.255.255').mask(cidr.bits()).to_s()
 
-    `brctl addbr #{name}`
-    `brctl setfd #{name} 0`
-    `ifconfig #{name} #{addr} netmask #{netmask} promisc up`
-    `iptables -t nat -A POSTROUTING -o #{gw} -j MASQUERADE`
-    `echo 1 > /proc/sys/net/ipv4/ip_forward`
+    add_interface(bridge, cidr, gateway_iface)
 
-    `mkdir -p #{File.join(BRIDGES, name)}`
-    `echo 0 > #{File.join(BRIDGES, name, "refcnt")}`
-    `echo #{gw} > #{File.join(BRIDGES, name, "iface")}`
-    `echo #{cidr.to_s()} > #{File.join(BRIDGES, name, "cidr")}`
-    `mkdir #{File.join(BRIDGES, name, "containers")}`
+    `mkdir -p #{File.join(BRIDGES, bridge)}`
+    `echo 0 > #{File.join(BRIDGES, bridge, "refcnt")}`
+    `echo #{gateway_iface} > #{File.join(BRIDGES, bridge, "iface")}`
+    `echo #{cidr.to_s()} > #{File.join(BRIDGES, bridge, "cidr")}`
+    `mkdir #{File.join(BRIDGES, bridge, "containers")}`
   end
 
   # Delete an Ethernet bridge, if no containers are using it.
@@ -246,7 +305,9 @@ class XLXC_BRIDGE
       return
     end
 
-    __delete_bridge(name)
+    `ifconfig #{name} promisc down`
+    `brctl delbr #{name}`
+    `rm -r #{File.join(BRIDGES, name)}`
   end
 
   if __FILE__ == $PROGRAM_NAME

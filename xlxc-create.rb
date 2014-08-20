@@ -57,11 +57,6 @@ def parse_opts()
       options[:name] = name
     end
 
-    options[:reset] = false
-    opts.on('-r', '--reset', 'Reset container') do
-      options[:reset] = true
-    end
-
     options[:script] = false
     opts.on('-s', '--script', 'Create a script for this container') do
       options[:script] = true
@@ -166,7 +161,7 @@ end
 # information for it that is specific to this container, such
 # as a network interface, hardware address, and bind mounts.
 #
-def config_container(bridge, name)
+def config_container(name, bridge)
   container = File.join(XLXC::LXC, name)
   rootfs = File.join(container, "rootfs")
   config = File.join(container, "config")
@@ -188,52 +183,6 @@ def config_container(bridge, name)
     f.puts(XLXC::FSTAB_TEMPLATE)
   }
 
-  # Set up container interfaces file (bypass DHCP).
-  cidr = nil
-  open(File.join(XLXC_BRIDGE::BRIDGES, bridge, "cidr"), 'r') { |f|
-    cidr = NetAddr::CIDR.create(f.readline().strip())
-  }
-
-  # TODO: lock bridge file while looking for a new address.
-
-  gateway = cidr.nth(1)
-  broadcast = cidr.last()
-  network = cidr.network()
-  netmask = IPAddr.new('255.255.255.255').mask(cidr.bits()).to_s()
-  address = nil
-  addresses = cidr.range(2)
-
-  containers_dir = File.join(XLXC_BRIDGE::BRIDGES, bridge, "containers")
-  containers = Dir.entries(containers_dir)
-
-  for addr in addresses
-    addrFound = false
-    for cont in containers
-      next if cont == '.' or cont == '..'
-      container_address = nil
-      open(File.join(containers_dir, cont), 'r') { |f|
-        container_address = f.readline().strip()
-      }
-      if addr == container_address
-        addrFound = true
-        break
-      end
-    end
-
-    if !addrFound
-      `echo #{addr} > #{File.join(containers_dir, name)}`
-      `echo #{bridge} > #{bridge_file}`
-      XLXC_BRIDGE.inc_bridge_refcnt(bridge)
-      address = addr
-      break
-    end
-  end
-
-  open(File.join(rootfs, XLXC::INTERFACES_FILE), 'w') { |f|
-    f.puts(sprintf(XLXC::INTERFACES_TEMPLATE, address, netmask, network,
-      broadcast, gateway))
-  }
-
   # Set up container hosts files.
   open(File.join(rootfs, XLXC::HOSTS_FILE), 'w') { |f|
     f.puts(sprintf(XLXC::HOSTS_TEMPLATE, name))
@@ -243,6 +192,9 @@ def config_container(bridge, name)
     f.puts(name)
   }
 
+  open(bridge_file, 'w') { |f|
+    f.puts(bridge)
+  }
 end
 
 # Setup a container with the given options.
@@ -251,24 +203,19 @@ def setup_container(options)
   name = options[:name]
   bridge = options[:bridge]
 
-  if options[:reset]
-    do_bind_mounts(File.join(XLXC::LXC, name, "rootfs"))
-  else
-    `cp -R #{XIA} #{LOCAL_ETC}`
+  `cp -R #{XIA} #{LOCAL_ETC}`
 
-    # Create filesystem for container.
-    create_fs(File.join(XLXC::LXC, name, "rootfs"))
+  # Create filesystem for container.
+  create_fs(File.join(XLXC::LXC, name, "rootfs"))
 
-    # Configure the container.
-    config_container(bridge, name)
+  # Configure the container (network, fstab, hostname).
+  config_container(name, bridge)
 
-    if options[:script]
-      create_script(container_name)
-    end
-
-    `rm -rf #{File.join(LOCAL_ETC, "xia")}`
+  if options[:script]
+    create_script(name)
   end
 
+  `rm -rf #{File.join(LOCAL_ETC, "xia")}`
 end
 
 if __FILE__ == $PROGRAM_NAME
