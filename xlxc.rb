@@ -11,11 +11,13 @@ class XLXC
   LXC = "/var/lib/lxc"
 
   # Directories that are bind mounted (read-only) from the host.
-  BIN   = "/bin"
-  LIB64 = "/lib64"
-  LIB   = "/lib"
-  SBIN  = "/sbin"
-  USR   = "/usr"
+BIND_MOUNTED_DIRECTORIES = [
+  "/bin",
+  "/lib64",
+  "/lib",
+  "/sbin",
+  "/usr"
+]
 
   # Default configuration data for each LXC container. More
   # configuration data is appended in xlxc-create.

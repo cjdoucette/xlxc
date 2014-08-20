@@ -122,6 +122,36 @@ class XLXC_BRIDGE
     end
   end
 
+  def self.get_ip_addr(name, bridge, cidr)
+    address = nil
+    addresses = cidr.range(2)
+
+    containers_dir = File.join(XLXC_BRIDGE::BRIDGES, bridge, "containers")
+    containers = Dir.entries(containers_dir)
+
+    for addr in addresses
+      addrFound = false
+      for cont in containers
+        next if cont == '.' or cont == '..'
+        container_address = nil
+        open(File.join(containers_dir, cont), 'r') { |f|
+          container_address = f.readline().strip()
+        }
+        if addr == container_address
+          addrFound = true
+          break
+        end
+      end
+
+      if !addrFound
+        return addr
+      end
+
+    end
+    return nil
+  end
+
+
   # Increment the reference count to this bridge.
   #
   def self.inc_bridge_refcnt(name)

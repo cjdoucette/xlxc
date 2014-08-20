@@ -140,11 +140,9 @@ end
 #
 def do_bind_mounts(rootfs)
   # Bind mount (read-only) directories from host.
-  bind_mount(XLXC::BIN, File.join(rootfs, XLXC::BIN), true, true)
-  bind_mount(XLXC::LIB64, File.join(rootfs, XLXC::LIB64), true, true)
-  bind_mount(XLXC::LIB, File.join(rootfs, XLXC::LIB), true, true)
-  bind_mount(XLXC::SBIN, File.join(rootfs, XLXC::SBIN), true, true)
-  bind_mount(XLXC::USR, File.join(rootfs, XLXC::USR), true, true)
+  for dir in XLXC::BIND_MOUNTED_DIRECTORIES
+    bind_mount(dir, File.join(rootfs, dir), true, true)
+  end
 end
 
 # Create container filesystem by bind mounting from host.
