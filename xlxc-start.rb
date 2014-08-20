@@ -64,7 +64,7 @@ def setup_net(name)
   # If this interface is not up, create it.
   interfaces = Dir.entries(XLXC_BRIDGE::INTERFACES)
   if !interfaces.include?(bridge)
-    XLXC_BRIDGE.add_interface(bridge, cidr, gateway_iface)
+    XLXC_BRIDGE.add_interface(bridge, cidr, iface)
   end
 
   XLXC_BRIDGE.alloc_ip_address_from_bridge(name, bridge)
