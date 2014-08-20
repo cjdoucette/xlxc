@@ -25,9 +25,9 @@ class XLXC_BRIDGE
 
   USAGE =
   "\nUsage:"                                                                  \
-    "\truby xlxc-bridge.rb -b bridge --add --gw host-gw-iface --ip bridge-cidr" \
-    "\n\tOR\n"                                                                \
-    "\truby xlxc-bridge.rb -b bridge --del [--force]\n\n"
+  "\truby xlxc-bridge.rb -b bridge --add --gw host-gw-iface --ip bridge-cidr" \
+  "\n\tOR\n"                                                                  \
+  "\truby xlxc-bridge.rb -b bridge --del [--force]\n\n"
 
   # Parse the command and organize the options.
   #
