@@ -25,9 +25,9 @@ class XLXC_BRIDGE
 
   USAGE =
   "\nUsage:"                                                                  \
-    "\truby xlxc-bridge.rb -n name --add --gw host-gw-iface --ip bridge-cidr" \
+    "\truby xlxc-bridge.rb -b bridge --add --gw host-gw-iface --ip bridge-cidr" \
     "\n\tOR\n"                                                                \
-    "\truby xlxc-bridge.rb -n name --del [--force]\n\n"
+    "\truby xlxc-bridge.rb -b bridge --del [--force]\n\n"
 
   # Parse the command and organize the options.
   #
@@ -40,6 +40,11 @@ class XLXC_BRIDGE
       options[:add] = false
       opts.on('-a', '--add', 'Add a bridge') do
         options[:add] = true
+      end
+
+      options[:bridge] = nil
+      opts.on('-b', '--bridge ARG', 'Bridge name') do |bridge|
+        options[:bridge] = bridge
       end
 
       options[:delete] = false
@@ -61,11 +66,6 @@ class XLXC_BRIDGE
       opts.on('-i', '--ip ARG', 'Bridge IPv4 address in CIDR notation') do |ip|
         options[:ip] = ip
       end
-
-      options[:name] = nil
-      opts.on('-n', '--name ARG', 'Bridge name') do |name|
-        options[:name] = name
-      end
     end
 
     optparse.parse!
@@ -81,8 +81,8 @@ class XLXC_BRIDGE
       exit
     end
 
-    name = options[:name]
-    if name == nil
+    bridge = options[:bridge]
+    if bridge == nil
       puts("Specify name for bridge.")
       exit
     end
@@ -101,8 +101,8 @@ class XLXC_BRIDGE
     end
 
     # Check to make sure bridge exists, if deleting.
-    if options[:delete] and !File.exists?(File.join(BRIDGES, name))
-      puts("Cannot delete bridge #{name} because it does not exist.")
+    if options[:delete] and !File.exists?(File.join(BRIDGES, bridge))
+      puts("Cannot delete bridge #{bridge} because it does not exist.")
       exit
     end
 
@@ -231,7 +231,7 @@ class XLXC_BRIDGE
   # Add an Ethernet bridge, if it does not already exist.
   #
   def self.add_bridge(options)
-    bridge = options[:name]
+    bridge = options[:bridge]
     gateway_iface = options[:gw]
     cidr = NetAddr::CIDR.create(options[:ip])
 
@@ -246,10 +246,10 @@ class XLXC_BRIDGE
   # Delete an Ethernet bridge, if no containers are using it.
   #
   def self.delete_bridge(options)
-    name = options[:name]
+    bridge = options[:bridge]
     force = options[:force]
 
-    cont_dir = File.join(BRIDGES, name, "containers")
+    cont_dir = File.join(BRIDGES, bridge, "containers")
     # Remove '.' and '..' files in directory.
     size = Dir.entries(cont_dir).size() - 2
     if !force and size != 0
@@ -257,16 +257,16 @@ class XLXC_BRIDGE
            "Use --force to delete the bridge, potentially\n" \
            "corrupting the networks for these containers\n"  \
            "that use this bridge:")
-      Dir.foreach(File.join(BRIDGES, name, "containers")) do |item|
+      Dir.foreach(File.join(BRIDGES, bridge, "containers")) do |item|
         next if item == '.' or item == '..'
         puts("  " + item)
       end
       return
     end
 
-    `ifconfig #{name} promisc down`
-    `brctl delbr #{name}`
-    `rm -r #{File.join(BRIDGES, name)}`
+    `ifconfig #{bridge} promisc down`
+    `brctl delbr #{bridge}`
+    `rm -r #{File.join(BRIDGES, bridge)}`
   end
 
   if __FILE__ == $PROGRAM_NAME
