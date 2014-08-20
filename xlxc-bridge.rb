@@ -249,7 +249,7 @@ class XLXC_BRIDGE
   def self.alloc_ip_address_from_bridge(name, bridge)
     cidr = get_bridge_cidr(bridge)
     address = get_free_ip_address(name, bridge, cidr)
-    add_ip_address_to_container(name, cidr, address)
+    add_ip_address_to_container(name, bridge, cidr, address)
   end
 
   # Add bridge interface using bridge-utils.
