@@ -13,7 +13,11 @@ require './xlxc'
 require './xlxc-bridge'
 
 
-USAGE = "Usage: ruby xlxc-net.rb -n name -s size -t topology {-i iface | --del}"
+USAGE =
+  "\nUsage:"                                                 \
+  "\truby xlxc-net.rb -n name -s size -t topology -i iface"  \
+  "\n\tOR\n"                                                 \
+  "\truby xlxc-net.rb -n name -s size -t topology --del\n\n"
 
 # Parse the command and organize the options.
 #
@@ -97,6 +101,10 @@ def check_for_errors(options)
 
     # We will use the naming scheme for the bridge, so make sure
     # there are no conflicts there.
+    if !Dir.exists?(XLXC_BRIDGE::BRIDGES)
+      `mkdir -p #{XLXC_BRIDGE::BRIDGES}`
+    end
+
     if topology == "connected"
       if Dir.entries(XLXC_BRIDGE::BRIDGES).include?(name + "br") ||
          Dir.entries(XLXC_BRIDGE::INTERFACES).include?(name + "br")
@@ -117,7 +125,7 @@ def check_for_errors(options)
   end
 
   iface = options[:iface]
-  if iface == nil
+  if !options[:delete] and iface == nil
     puts("Specify host's gateway interface using -i or --iface.")
     exit
   end
@@ -147,6 +155,28 @@ def create_star_network(name, size, iface)
   end
 end
 
+# Deletes a connected network of Linux XIA containrs, where each
+# container is on the same Ethernet bridge.
+#
+def delete_connected_network(name, size)
+  bridge = name + "br"
+  for i in 0..(size - 1)
+    `ruby xlxc-destroy.rb -n #{name + i.to_s()}`
+  end
+  `ruby xlxc-bridge.rb -b #{bridge} --del`
+end
+
+# Deletes a star network of Linux XIA containers, where each
+# container is on a separate Ethernet bridge.
+#
+def delete_star_network(name, size)
+  for i in 0..(size - 1)
+    bridge = name + i.to_s() + "br"
+    `ruby xlxc-destroy.rb -n #{name + i.to_s()}`
+    `ruby xlxc-bridge.rb -b #{bridge} --del`
+  end
+end
+
 if __FILE__ == $PROGRAM_NAME
   options = parse_opts()
   check_for_errors(options)
@@ -165,9 +195,9 @@ if __FILE__ == $PROGRAM_NAME
     end
   elsif
     if topology == "connected"
-      delete_connected_network(name, size, iface)
+      delete_connected_network(name, size)
     elsif topology == "star"
-      delete_star_network(name, size, iface)
+      delete_star_network(name, size)
     else
       raise("No option chosen.")
     end
