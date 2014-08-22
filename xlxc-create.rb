@@ -24,6 +24,7 @@ INITIALLY_EMPTY_DIRECTORIES = [
   "/proc",
   "/sys",
   "/dev/pts",
+  "/dev/shm",
   "/home/ubuntu",
   "/root",
   "/var/run"
