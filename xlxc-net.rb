@@ -13,7 +13,7 @@ require './xlxc'
 require './xlxc-bridge'
 
 
-USAGE = "Usage: ruby xlxc-net.rb -n name -s size -t topology -i iface"
+USAGE = "Usage: ruby xlxc-net.rb -n name -s size -t topology {-i iface | --del}"
 
 # Parse the command and organize the options.
 #
@@ -22,6 +22,11 @@ def parse_opts()
 
   optparse = OptionParser.new do |opts|
     opts.banner = USAGE
+
+    options[:delete] = false
+    opts.on('-d', '--delete', 'Delete this container network') do
+      options[:delete] = true
+    end
 
     options[:iface] = nil
     opts.on('-i', '--iface ARG', 'Host gateway interface') do |iface|
@@ -57,6 +62,12 @@ def check_for_errors(options)
     exit
   end
 
+  name = options[:name]
+  if name == nil
+    puts("Specify name for container using -n or --name.")
+    exit
+  end
+
   size = options[:size]
   if size <= 0
     puts("The size of the network must be greater than zero.")
@@ -68,20 +79,6 @@ def check_for_errors(options)
     exit
   end
 
-  # Check that there are no conflicts with the container name.
-  name = options[:name]
-  if name == nil
-    puts("Specify name for container using -n or --name.")
-    exit
-  end
-
-  for i in 0..(size - 1)
-    if File.exists?(File.join(XLXC::LXC, name + i.to_s()))
-      puts("Container #{name + i.to_s()} already exists.")
-      exit
-    end
-  end
-
   # Check that topology is valid.
   topology = options[:topology]
   if topology != "star" and topology != "connected"
@@ -89,22 +86,32 @@ def check_for_errors(options)
     exit
   end
 
-  # We will use the naming scheme for the bridge, so make sure
-  # there are no conflicts there.
-  if topology == "connected"
-    if Dir.entries(XLXC_BRIDGE::BRIDGES).include?(name + "br") ||
-       Dir.entries(XLXC_BRIDGE::INTERFACES).include?(name + "br")
-      puts("Bridge #{name + "br"} is already in use, so this\n" \
-           "naming scheme cannot be used.")
-      exit
-    end
-  else
+  # Check that there are no conflicts with the container name.
+  if !options[:delete]
     for i in 0..(size - 1)
-      if Dir.entries(XLXC_BRIDGE::BRIDGES).include?(name + i.to_s() + "br") ||
-         Dir.entries(XLXC_BRIDGE::INTERFACES).include?(name + i.to_s() + "br")
-        puts("Bridge #{name + i.to_s() + "br"} is already in use, so this\n" \
+      if File.exists?(File.join(XLXC::LXC, name + i.to_s()))
+        puts("Container #{name + i.to_s()} already exists.")
+        exit
+      end
+    end
+
+    # We will use the naming scheme for the bridge, so make sure
+    # there are no conflicts there.
+    if topology == "connected"
+      if Dir.entries(XLXC_BRIDGE::BRIDGES).include?(name + "br") ||
+         Dir.entries(XLXC_BRIDGE::INTERFACES).include?(name + "br")
+        puts("Bridge #{name + "br"} is already in use, so this\n" \
              "naming scheme cannot be used.")
         exit
+      end
+    else
+      for i in 0..(size - 1)
+        if Dir.entries(XLXC_BRIDGE::BRIDGES).include?(name + i.to_s() + "br") ||
+           Dir.entries(XLXC_BRIDGE::INTERFACES).include?(name + i.to_s() + "br")
+          puts("Bridge #{name + i.to_s() + "br"} is already in use, so this\n" \
+               "naming scheme cannot be used.")
+          exit
+        end
       end
     end
   end
@@ -147,11 +154,22 @@ if __FILE__ == $PROGRAM_NAME
   iface = options[:iface]
   size = options[:size]
   topology = options[:topology]
-  if topology == "connected"
-    create_connected_network(name, size, iface)
-  elsif topology == "star"
-    create_star_network(name, size, iface)
-  else
-    raise("No option chosen.")
+  to_delete = options[:delete]
+  if !to_delete
+    if topology == "connected"
+      create_connected_network(name, size, iface)
+    elsif topology == "star"
+      create_star_network(name, size, iface)
+    else
+      raise("No option chosen.")
+    end
+  elsif
+    if topology == "connected"
+      delete_connected_network(name, size, iface)
+    elsif topology == "star"
+      delete_star_network(name, size, iface)
+    else
+      raise("No option chosen.")
+    end
   end
 end
