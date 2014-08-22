@@ -13,7 +13,7 @@ require './xlxc'
 require './xlxc-bridge'
 
 
-USAGE = "Usage: ruby xlxc-execute.rb -n name -- command"
+USAGE = "\nUsage: ruby xlxc-execute.rb -n name -- command\n\n"
 
 # Parse the command and organize the options.
 #

@@ -14,9 +14,9 @@ require './xlxc-bridge'
 
 
 USAGE =
-  "\nUsage:"                                                 \
-  "\truby xlxc-net.rb -n name -s size -t topology -i iface"  \
-  "\n\tOR\n"                                                 \
+  "\nUsage:"                                                               \
+  "\truby xlxc-net.rb -n name -s size -t topology -i iface --exec-script"  \
+  "\n\tOR\n"                                                               \
   "\truby xlxc-net.rb -n name -s size -t topology --del\n\n"
 
 # Parse the command and organize the options.
@@ -50,6 +50,11 @@ def parse_opts()
     options[:topology] = nil
     opts.on('-t', '--topology ARG', 'Topology of network') do |top|
       options[:topology] = top
+    end
+
+    options[:script] = false
+    opts.on('-x', '--exec-script', 'Add executable script to containers') do
+      options[:script] = true
     end
   end
 
@@ -134,24 +139,32 @@ end
 # Creates a connected network of Linux XIA containrs, where each
 # container is on the same Ethernet bridge.
 #
-def create_connected_network(name, size, iface)
+def create_connected_network(name, size, iface, use_script)
   bridge = name + "br"
   cidr_str = XLXC_BRIDGE.get_free_cidr_block(size).to_s()
-  `ruby xlxc-bridge.rb -b #{bridge} --add --iface #{iface} --cidr #{cidr_str}`
+  `ruby xlxc-bridge.rb -b #{bridge} --iface #{iface} --cidr #{cidr_str}`
   for i in 0..(size - 1)
-    `ruby xlxc-create.rb -n #{name + i.to_s()} -b #{bridge}`
+    if use_script
+      `ruby xlxc-create.rb -n #{name + i.to_s()} -b #{bridge} --script`
+    else
+      `ruby xlxc-create.rb -n #{name + i.to_s()} -b #{bridge}`
+    end
   end
 end
 
 # Creates a star network of Linux XIA containers, where each
 # container is on a separate Ethernet bridge.
 #
-def create_star_network(name, size, iface)
+def create_star_network(name, size, iface, use_script)
   for i in 0..(size - 1)
     bridge = name + i.to_s() + "br"
     cidr_str = XLXC_BRIDGE.get_free_cidr_block(size).to_s()
-    `ruby xlxc-bridge.rb -b #{bridge} --add --iface #{iface} --cidr #{cidr_str}`
-    `ruby xlxc-create.rb -n #{name + i.to_s()} -b #{bridge}`
+    `ruby xlxc-bridge.rb -b #{bridge} --iface #{iface} --cidr #{cidr_str}`
+    if use_script
+      `ruby xlxc-create.rb -n #{name + i.to_s()} -b #{bridge} --script`
+    else
+      `ruby xlxc-create.rb -n #{name + i.to_s()} -b #{bridge}`
+    end
   end
 end
 
@@ -184,12 +197,13 @@ if __FILE__ == $PROGRAM_NAME
   iface = options[:iface]
   size = options[:size]
   topology = options[:topology]
+  script = options[:script]
   to_delete = options[:delete]
   if !to_delete
     if topology == "connected"
-      create_connected_network(name, size, iface)
+      create_connected_network(name, size, iface, script)
     elsif topology == "star"
-      create_star_network(name, size, iface)
+      create_star_network(name, size, iface, script)
     else
       raise("No option chosen.")
     end
