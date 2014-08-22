@@ -58,8 +58,8 @@ end
 #
 def start_container(options)
   name = options[:name]
-  setup_net(name)
-  setup_fs(name)
+  XLXC.setup_net(name)
+  XLXC.setup_fs(name)
   `lxc-start -n #{name}`
 end
 
