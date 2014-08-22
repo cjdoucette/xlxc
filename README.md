@@ -25,12 +25,12 @@ The following table illustrates the similaries between LXC and XLXC:
 | xlxc-destroy.rb | Destroy a container                    | lxc-destroy    |
 | xlxc-start.rb   | Start a container/attach console       | lxc-start      |
 | xlxc-stop.rb    | Stop a container/detach console        | lxc-stop       |
-| xlxc-bridge.rb  | Create/destroy an Ethernet bridge      | *              |
-| xlxc-net.rb     | Create a network of bridges/containers | **             |
+| xlxc-bridge.rb  | Create/destroy an Ethernet bridge      | 1.             |
+| xlxc-net.rb     | Create a network of bridges/containers | 2.             |
 -----------------------------------------------------------------------------
 
-* LXC creates a single default bridge for containers to use.
-** LXC does not have any batching functionality.
+1. LXC creates a single default bridge for containers to use.
+2. LXC does not have any batching functionality.
 
 Users can use xlxc-create.rb, xlxc-destroy.rb, and xlxc-bridge.rb individually to create containers.
 However, the easiest way to create containers is to use xlxc-net.rb:
