@@ -35,6 +35,39 @@ class XLXC
     end
   end
 
+  # Set up the network for this bridge. This involves re-creating the
+  # Ethernet bridge (if necessary) and allocating an IP address.
+  #
+  def self.setup_net(name)
+    bridge = XLXC_BRIDGE.get_bridge(name)
+    cidr = XLXC_BRIDGE.get_bridge_cidr(bridge)
+    iface = XLXC_BRIDGE.get_bridge_iface(bridge)
+
+    # If this interface is not up, create it.
+    interfaces = Dir.entries(XLXC_BRIDGE::INTERFACES)
+    if !interfaces.include?(bridge)
+      XLXC_BRIDGE.add_interface(bridge, cidr, iface)
+    end
+
+    XLXC_BRIDGE.alloc_ip_address_from_bridge(name, bridge)
+  end
+
+  # Perform bind mounts necessary to run container.
+  #
+  def self.setup_fs(name)
+    rootfs = File.join(LXC, name, "rootfs")
+
+    # Bind mount (read-only) directories from host.
+    for dir in BIND_MOUNTED_DIRECTORIES
+      if !Dir.exists?(File.join(rootfs, dir)) ||
+         Dir.entries(File.join(rootfs, dir)).size() <= 2
+        bind_mount(dir, File.join(rootfs, dir), true, true)
+      end
+    end
+  end
+
+
+
   # Default configuration data for each LXC container. More
   # configuration data is appended in xlxc-create.
   LXC_CONFIG_TEMPLATE =

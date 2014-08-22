@@ -25,7 +25,7 @@ class XLXC_BRIDGE
 
   USAGE =
   "\nUsage:"                                                        \
-  "\truby xlxc-bridge.rb -b bridge --add --iface iface --cidr cidr" \
+  "\truby xlxc-bridge.rb -b bridge -i iface -c cidr" \
   "\n\tOR\n"                                                        \
   "\truby xlxc-bridge.rb -b bridge --del [--force]\n\n"
 
@@ -36,11 +36,6 @@ class XLXC_BRIDGE
 
     optparse = OptionParser.new do |opts|
       opts.banner = USAGE
-
-      options[:add] = false
-      opts.on('-a', '--add', 'Add a bridge') do
-        options[:add] = true
-      end
 
       options[:bridge] = nil
       opts.on('-b', '--bridge ARG', 'Bridge name') do |bridge|
@@ -88,14 +83,14 @@ class XLXC_BRIDGE
     end
 
     gateway_iface = options[:iface]
-    if options[:add] and (options[:iface] == nil or options[:cidr] == nil)
+    if !options[:delete] and (options[:iface] == nil or options[:cidr] == nil)
       puts("Specify host gateway interface and IPv4 address\n" \
            "of the bridge using CIDR notation.")
       exit
     end
 
     # Check to make sure gateway interface exists, if adding.
-    if options[:add] and !File.exists?(File.join(INTERFACES, gateway_iface))
+    if !options[:delete] and !File.exists?(File.join(INTERFACES, gateway_iface))
       puts("Host interface #{gateway_iface} does not exist.")
       exit
     end
@@ -103,21 +98,6 @@ class XLXC_BRIDGE
     # Check to make sure bridge exists, if deleting.
     if options[:delete] and !File.exists?(File.join(BRIDGES, bridge))
       puts("Cannot delete bridge #{bridge} because it does not exist.")
-      exit
-    end
-
-    if options[:add] and options[:delete]
-      puts("Cannot add and delete a bridge simultaneously.")
-      exit
-    end
-
-    if !options[:add] and !options[:delete]
-      puts("Must specify --add or --delete.")
-      exit
-    end
-
-    if options[:add] and options[:force]
-      puts("--force has no effect when specified with --add.")
       exit
     end
   end
@@ -316,7 +296,7 @@ class XLXC_BRIDGE
   if __FILE__ == $PROGRAM_NAME
     options = parse_opts()
     check_for_errors(options)
-    if options[:add]
+    if !options[:delete]
       add_bridge(options)
     elsif options[:delete]
       delete_bridge(options)

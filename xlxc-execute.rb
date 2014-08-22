@@ -1,11 +1,10 @@
 #
-# xlxc-start: start a Linux XIA container
+# xlxc-execute: execute a command in a Linux XIA container
 #
 # Author: Cody Doucette <doucette@bu.edu>
 #
-# This Ruby script resets all containers and bridges that have been created
-# by re-doing any bind mounts and re-initializing Ethernet bridges. This is
-# particularly useful after the host has been rebooted.
+# This Ruby script starts a Linux XIA container and executes a command
+# inside it.
 #
 
  
@@ -14,7 +13,7 @@ require './xlxc'
 require './xlxc-bridge'
 
 
-USAGE = "Usage: ruby xlxc-start.rb -n name"
+USAGE = "Usage: ruby xlxc-execute.rb -n name -- command"
 
 # Parse the command and organize the options.
 #
@@ -40,7 +39,7 @@ end
 def check_for_errors(options)
   # Check that user is root.
   if Process.uid != 0
-    puts("xlxc-start.rb must be run as root.")
+    puts("xlxc-execute.rb must be run as root.")
     exit
   end
 
@@ -51,20 +50,25 @@ def check_for_errors(options)
     puts("Specify name for container using -n or --name.")
     exit
   end
+
+  if ARGV.length <= 0
+    puts("Specify a command to run in the container.")
+    exit
+  end
 end
 
-# Check to make sure that the container is set-up correctly and
-# then start the container.
+# Execute a given command inside a container.
 #
-def start_container(options)
+def execute_container(options)
   name = options[:name]
-  setup_net(name)
-  setup_fs(name)
-  `lxc-start -n #{name}`
+  command = ARGV.join(' ')
+  XLXC.setup_net(name)
+  XLXC.setup_fs(name)
+  `lxc-execute -n #{name} -- #{command}`
 end
 
 if __FILE__ == $PROGRAM_NAME
   options = parse_opts()
   check_for_errors(options)
-  start_container(options)
+  execute_container(options)
 end
