@@ -24,9 +24,9 @@ class XLXC_BRIDGE
   BRIDGES = File.join(Dir.pwd(), "bridges")
 
   USAGE =
-  "\nUsage:"                                                        \
-  "\truby xlxc-bridge.rb -b bridge -i iface -c cidr" \
-  "\n\tOR\n"                                                        \
+  "\nUsage:"                                                    \
+  "\truby xlxc-bridge.rb -b bridge -c cidr [-i iface]"          \
+  "\n\tOR\n"                                                    \
   "\truby xlxc-bridge.rb -b bridge --del [--force]\n\n"
 
   # Parse the command and organize the options.
@@ -82,15 +82,15 @@ class XLXC_BRIDGE
       exit
     end
 
-    gateway_iface = options[:iface]
-    if !options[:delete] and (options[:iface] == nil or options[:cidr] == nil)
-      puts("Specify host gateway interface and IPv4 address\n" \
-           "of the bridge using CIDR notation.")
+    if !options[:delete] and options[:cidr] == nil)
+      puts("Specify host IPv4 address of the bridge using CIDR notation.")
       exit
     end
 
     # Check to make sure gateway interface exists, if adding.
-    if !options[:delete] and !File.exists?(File.join(INTERFACES, gateway_iface))
+    gateway_iface = options[:iface]
+    if !options[:delete] and gateway_iface != nil and
+      !File.exists?(File.join(INTERFACES, gateway_iface))
       puts("Host interface #{gateway_iface} does not exist.")
       exit
     end
@@ -126,9 +126,11 @@ class XLXC_BRIDGE
   #
   def self.get_bridge_iface(bridge)
     iface = nil
-    open(File.join(XLXC_BRIDGE::BRIDGES, bridge, "iface"), 'r') { |f|
-      iface = f.readline().strip()
-    }
+    if File.exists?(XLXC_BRIDGE::BRIDGES, bridge, "iface")
+      open(File.join(XLXC_BRIDGE::BRIDGES, bridge, "iface"), 'r') { |f|
+        iface = f.readline().strip()
+      }
+    end
     return iface
   end
 
@@ -173,8 +175,6 @@ class XLXC_BRIDGE
     # All CIDR blocks have been allocated.
     return nil
   end
-
-
 
   # Find a free IP address for this bridge.
   # TODO: lock the bridge file.
@@ -248,7 +248,9 @@ class XLXC_BRIDGE
     `brctl addbr #{bridge}`
     `brctl setfd #{bridge} 0`
     `ifconfig #{bridge} #{gateway_address} netmask #{netmask} promisc up`
-    `iptables -t nat -A POSTROUTING -o #{gateway_iface} -j MASQUERADE`
+    if gateway_iface != nil
+      `iptables -t nat -A POSTROUTING -o #{gateway_iface} -j MASQUERADE`
+    end
     `echo 1 > /proc/sys/net/ipv4/ip_forward`
   end
 
@@ -263,7 +265,9 @@ class XLXC_BRIDGE
 
     `mkdir -p #{File.join(BRIDGES, bridge)}`
     `echo #{gateway_iface} > #{File.join(BRIDGES, bridge, "iface")}`
-    `echo #{cidr.to_s()} > #{File.join(BRIDGES, bridge, "cidr")}`
+    if gateway_iface != nil
+      `echo #{cidr.to_s()} > #{File.join(BRIDGES, bridge, "cidr")}`
+    else
     `mkdir #{File.join(BRIDGES, bridge, "containers")}`
   end
 
@@ -292,6 +296,7 @@ class XLXC_BRIDGE
     `brctl delbr #{bridge}`
     `rm -r #{File.join(BRIDGES, bridge)}`
   end
+
 
   if __FILE__ == $PROGRAM_NAME
     options = parse_opts()
