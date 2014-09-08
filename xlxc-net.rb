@@ -242,7 +242,7 @@ end
 #
 def start_network(name, size)
   for i in 0..(size - 1)
-    `ruby xlxc-start.rb -n #{name + i.to_s()}`
+    `ruby xlxc-start.rb -n #{name + i.to_s()} --daemon`
   end
 end
 

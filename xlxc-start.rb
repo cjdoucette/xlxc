@@ -14,7 +14,7 @@ require './xlxc'
 require './xlxc-bridge'
 
 
-USAGE = "Usage: ruby xlxc-start.rb -n name"
+USAGE = "Usage: ruby xlxc-start.rb -n name [--daemon]"
 
 # Parse the command and organize the options.
 #
@@ -23,6 +23,11 @@ def parse_opts()
 
   optparse = OptionParser.new do |opts|
     opts.banner = USAGE
+
+    options[:daemon] = false
+    opts.on('-d', '--daemon', 'Start in daemon mode') do |name|
+      options[:daemon] = true
+    end
 
     options[:name] = nil
     opts.on('-n', '--name ARG', 'Container name') do |name|
@@ -60,7 +65,11 @@ def start_container(options)
   name = options[:name]
   XLXC.setup_net(name)
   XLXC.setup_fs(name)
-  `lxc-start -n #{name}`
+  if options[:daemon]
+    `lxc-start -n #{name} -d`
+  else
+    `lxc-start -n #{name}`
+  end
 end
 
 if __FILE__ == $PROGRAM_NAME
