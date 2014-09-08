@@ -139,10 +139,10 @@ class XLXC_BRIDGE
   #
   def self.get_free_cidr_block(size)
     # Skip network address and gateway address.
-    cidr_to_try = NetAddr::CIDR.create("192.168.0.0/24")
+    cidr_to_try = NetAddr::CIDR.create("10.1.0.0/24")
     cidr_size = 255
     if size > 254
-      cidr_to_try = NetAddr::CIDR.create("192.0.0.0/16")
+      cidr_to_try = NetAddr::CIDR.create("10.1.0.0/16")
       cidr_size = 65535
     end
 
