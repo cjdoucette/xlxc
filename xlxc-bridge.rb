@@ -82,7 +82,7 @@ class XLXC_BRIDGE
       exit
     end
 
-    if !options[:delete] and options[:cidr] == nil)
+    if !options[:delete] and options[:cidr] == nil
       puts("Specify host IPv4 address of the bridge using CIDR notation.")
       exit
     end
@@ -267,7 +267,7 @@ class XLXC_BRIDGE
     `echo #{gateway_iface} > #{File.join(BRIDGES, bridge, "iface")}`
     if gateway_iface != nil
       `echo #{cidr.to_s()} > #{File.join(BRIDGES, bridge, "cidr")}`
-    else
+    end
     `mkdir #{File.join(BRIDGES, bridge, "containers")}`
   end
 

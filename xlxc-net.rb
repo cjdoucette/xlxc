@@ -15,9 +15,15 @@ require './xlxc-bridge'
 
 USAGE =
   "\nUsage:"                                                               \
-  "\truby xlxc-net.rb -n name -s size -t topology -i iface --exec-script"  \
+  "\truby xlxc-net.rb -n name -s size --create -t topology [OPTIONS]"      \
   "\n\tOR\n"                                                               \
-  "\truby xlxc-net.rb -n name -s size -t topology --del\n\n"
+  "\truby xlxc-net.rb -n name -s size --destroy -t topology"               \
+  "\n\tOR\n"                                                               \
+  "\truby xlxc-net.rb -n name -s size --start"                             \
+  "\n\tOR\n"                                                               \
+  "\truby xlxc-net.rb -n name -s size --stop"                              \
+  "\n\tOR\n"                                                               \
+  "\truby xlxc-net.rb -n name -s size --execute -- command\n\n"            \
 
 # Parse the command and organize the options.
 #
@@ -27,19 +33,39 @@ def parse_opts()
   optparse = OptionParser.new do |opts|
     opts.banner = USAGE
 
-    options[:delete] = false
-    opts.on('-d', '--delete', 'Delete this container network') do
-      options[:delete] = true
+    options[:start] = false
+    opts.on('-a', '--start', 'Start containers in this network') do
+      options[:start] = true
+    end
+
+    options[:create] = false
+    opts.on('-c', '--create', 'Create this container network') do
+      options[:create] = true
+    end
+
+    options[:destroy] = false
+    opts.on('-d', '--destroy', 'Destroy this container network') do
+      options[:destroy] = true
+    end
+
+    options[:script] = false
+    opts.on('-e', '--exec-script', 'Add executable script (--create)') do
+      options[:script] = true
     end
 
     options[:iface] = nil
-    opts.on('-i', '--iface ARG', 'Host gateway interface') do |iface|
+    opts.on('-i', '--iface ARG', 'Host gateway iface (--create)') do |iface|
       options[:iface] = iface
     end
 
     options[:name] = nil
     opts.on('-n', '--name ARG', 'Network naming scheme') do |name|
       options[:name] = name
+    end
+
+    options[:stop] = false
+    opts.on('-o', '--stop', 'Stop containers in this network') do
+      options[:stop] = true
     end
 
     options[:size] = 0
@@ -52,9 +78,9 @@ def parse_opts()
       options[:topology] = top
     end
 
-    options[:script] = false
-    opts.on('-x', '--exec-script', 'Add executable script to containers') do
-      options[:script] = true
+    options[:exec] = nil
+    opts.on('-x', '--execute -- ARG', 'Exec command in containers') do |cmd|
+      options[:exec] = cmd
     end
   end
 
@@ -88,15 +114,38 @@ def check_for_errors(options)
     exit
   end
 
+  count = 0
+  if options[:create]
+    count += 1
+  end
+  if options[:destroy]
+    count += 1
+  end
+  if options[:start]
+    count += 1
+  end
+  if options[:stop]
+    count += 1
+  end
+  if options[:exec] != nil
+    count += 1
+  end
+
+  if count < 1 or count > 1
+    puts("Must use one of: --create, --destroy, --start, --stop, --execute.")
+    exit
+  end
+
   # Check that topology is valid.
   topology = options[:topology]
-  if topology != "star" and topology != "connected"
+  if (options[:create] or options[:destroy]) and 
+     (topology != "star" and topology != "connected")
     puts("Must indicate topology with either \"star\" or \"connected\".")
     exit
   end
 
   # Check that there are no conflicts with the container name.
-  if !options[:delete]
+  if options[:create]
     for i in 0..(size - 1)
       if File.exists?(File.join(XLXC::LXC, name + i.to_s()))
         puts("Container #{name + i.to_s()} already exists.")
@@ -127,12 +176,6 @@ def check_for_errors(options)
         end
       end
     end
-  end
-
-  iface = options[:iface]
-  if !options[:delete] and iface == nil
-    puts("Specify host's gateway interface using -i or --iface.")
-    exit
   end
 end
 
@@ -168,10 +211,10 @@ def create_star_network(name, size, iface, use_script)
   end
 end
 
-# Deletes a connected network of Linux XIA containrs, where each
+# Destroys a connected network of Linux XIA containrs, where each
 # container is on the same Ethernet bridge.
 #
-def delete_connected_network(name, size)
+def destroy_connected_network(name, size)
   bridge = name + "br"
   for i in 0..(size - 1)
     `ruby xlxc-destroy.rb -n #{name + i.to_s()}`
@@ -179,10 +222,10 @@ def delete_connected_network(name, size)
   `ruby xlxc-bridge.rb -b #{bridge} --del`
 end
 
-# Deletes a star network of Linux XIA containers, where each
+# Destroys a star network of Linux XIA containers, where each
 # container is on a separate Ethernet bridge.
 #
-def delete_star_network(name, size)
+def destroy_star_network(name, size)
   for i in 0..(size - 1)
     bridge = name + i.to_s() + "br"
     `ruby xlxc-destroy.rb -n #{name + i.to_s()}`
@@ -190,16 +233,48 @@ def delete_star_network(name, size)
   end
 end
 
+# Starts a network of Linux XIA containers.
+#
+def start_network(name, size)
+  for i in 0..(size - 1)
+    `ruby xlxc-start.rb -n #{name + i.to_s()}`
+  end
+end
+
+# Stops a network of Linux XIA containers.
+#
+def stop_network(name, size)
+  for i in 0..(size - 1)
+    `ruby xlxc-stop.rb -n #{name + i.to_s()}`
+  end
+end
+
+# Executes a command on a network of Linux XIA containers.
+#
+def execute_network(name, size, command)
+  for i in 0..(size - 1)
+    `ruby xlxc-execute.rb -n #{name + i.to_s()} -- #{command}`
+  end
+end
+
+
 if __FILE__ == $PROGRAM_NAME
   options = parse_opts()
   check_for_errors(options)
+
+  create = options[:create]
+  destroy = options[:destroy]
+  start = options[:start]
+  stop = options[:stop]
+  execute = options[:exec]
+
   name = options[:name]
   iface = options[:iface]
   size = options[:size]
   topology = options[:topology]
   script = options[:script]
-  to_delete = options[:delete]
-  if !to_delete
+
+  if create
     if topology == "connected"
       create_connected_network(name, size, iface, script)
     elsif topology == "star"
@@ -207,13 +282,19 @@ if __FILE__ == $PROGRAM_NAME
     else
       raise("No option chosen.")
     end
-  elsif
+  elsif destroy
     if topology == "connected"
-      delete_connected_network(name, size)
+      destroy_connected_network(name, size)
     elsif topology == "star"
-      delete_star_network(name, size)
+      destroy_star_network(name, size)
     else
       raise("No option chosen.")
     end
+  elsif start
+    start_network(name, size)
+  elsif stop
+    stop_network(name, size)
+  elsif execute != nil
+    execute_network(name, size, ARGV.join(' '))
   end
 end
