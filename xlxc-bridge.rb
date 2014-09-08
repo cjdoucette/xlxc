@@ -134,15 +134,30 @@ class XLXC_BRIDGE
     return iface
   end
 
+  # Check to see if the given cidr is already present in ifconfig.
+  #
+  def self.host_cidr_already_exists(cidr_to_try)
+    host_networks = `ifconfig | grep 'Mask:' | awk {'print $2, $4'} | grep -v '^$' | grep -v '127.0.0.1' | sed -e 's/Mask://' | sed -e 's/addr://'`.split("\n")
+
+    for network in host_networks
+      host_cidr = NetAddr::CIDR.create(network)
+      if cidr_to_try == host_cidr
+        return true
+      end
+    end
+
+    return false
+  end
+
   # Find a free CIDR block for this bridge.
   # TODO: lock the bridge file.
   #
   def self.get_free_cidr_block(size)
     # Skip network address and gateway address.
-    cidr_to_try = NetAddr::CIDR.create("10.1.0.0/24")
+    cidr_to_try = NetAddr::CIDR.create("10.0.0.0/24")
     cidr_size = 255
     if size > 254
-      cidr_to_try = NetAddr::CIDR.create("10.1.0.0/16")
+      cidr_to_try = NetAddr::CIDR.create("10.0.0.0/16")
       cidr_size = 65535
     end
 
@@ -159,6 +174,13 @@ class XLXC_BRIDGE
         open(File.join(BRIDGES, bridge, "cidr"), 'r') { |f|
           existing_cidr = f.readline().strip()
         }
+
+        # Test to see if this network space is already allocated on
+        # this machine, regardless of whether it has to do with XLXC.
+        if host_cidr_already_exists(cidr_to_try)
+          cidr_already_allocated = true
+          break
+        end
 
         if cidr_to_try.to_s() == existing_cidr
           cidr_already_allocated = true
