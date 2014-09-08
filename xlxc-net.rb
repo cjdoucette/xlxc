@@ -185,7 +185,11 @@ end
 def create_connected_network(name, size, iface, use_script)
   bridge = name + "br"
   cidr_str = XLXC_BRIDGE.get_free_cidr_block(size).to_s()
-  `ruby xlxc-bridge.rb -b #{bridge} --iface #{iface} --cidr #{cidr_str}`
+  if use_script
+    `ruby xlxc-bridge.rb -b #{bridge} --iface #{iface} --cidr #{cidr_str}`
+  else
+    `ruby xlxc-bridge.rb -b #{bridge} --cidr #{cidr_str}`
+  end
   for i in 0..(size - 1)
     if use_script
       `ruby xlxc-create.rb -n #{name + i.to_s()} -b #{bridge} --script`
@@ -202,10 +206,11 @@ def create_star_network(name, size, iface, use_script)
   for i in 0..(size - 1)
     bridge = name + i.to_s() + "br"
     cidr_str = XLXC_BRIDGE.get_free_cidr_block(size).to_s()
-    `ruby xlxc-bridge.rb -b #{bridge} --iface #{iface} --cidr #{cidr_str}`
     if use_script
+      `ruby xlxc-bridge.rb -b #{bridge} --iface #{iface} --cidr #{cidr_str}`
       `ruby xlxc-create.rb -n #{name + i.to_s()} -b #{bridge} --script`
     else
+      `ruby xlxc-bridge.rb -b #{bridge} --cidr #{cidr_str}`
       `ruby xlxc-create.rb -n #{name + i.to_s()} -b #{bridge}`
     end
   end
@@ -276,6 +281,7 @@ if __FILE__ == $PROGRAM_NAME
 
   if create
     if topology == "connected"
+      puts("here")
       create_connected_network(name, size, iface, script)
     elsif topology == "star"
       create_star_network(name, size, iface, script)

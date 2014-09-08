@@ -126,7 +126,7 @@ class XLXC_BRIDGE
   #
   def self.get_bridge_iface(bridge)
     iface = nil
-    if File.exists?(XLXC_BRIDGE::BRIDGES, bridge, "iface")
+    if File.exists?(File.join(XLXC_BRIDGE::BRIDGES, bridge, "iface"))
       open(File.join(XLXC_BRIDGE::BRIDGES, bridge, "iface"), 'r') { |f|
         iface = f.readline().strip()
       }
@@ -264,9 +264,9 @@ class XLXC_BRIDGE
     add_interface(bridge, cidr, gateway_iface)
 
     `mkdir -p #{File.join(BRIDGES, bridge)}`
-    `echo #{gateway_iface} > #{File.join(BRIDGES, bridge, "iface")}`
+    `echo #{cidr.to_s()} > #{File.join(BRIDGES, bridge, "cidr")}`
     if gateway_iface != nil
-      `echo #{cidr.to_s()} > #{File.join(BRIDGES, bridge, "cidr")}`
+      `echo #{gateway_iface} > #{File.join(BRIDGES, bridge, "iface")}`
     end
     `mkdir #{File.join(BRIDGES, bridge, "containers")}`
   end
