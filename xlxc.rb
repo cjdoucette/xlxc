@@ -49,7 +49,9 @@ class XLXC
       XLXC_BRIDGE.add_interface(bridge, cidr, iface)
     end
 
-    XLXC_BRIDGE.alloc_ip_address_from_bridge(name, bridge)
+    if XLXC_BRIDGE.get_ip_addr(name, bridge) == nil
+      XLXC_BRIDGE.alloc_ip_address_from_bridge(name, bridge)
+    end
   end
 
   # Perform bind mounts necessary to run container.
@@ -65,7 +67,6 @@ class XLXC
       end
     end
   end
-
 
 
   # Default configuration data for each LXC container. More

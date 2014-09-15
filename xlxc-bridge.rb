@@ -116,9 +116,11 @@ class XLXC_BRIDGE
   #
   def self.get_bridge_cidr(bridge)
     cidr = nil
-    open(File.join(XLXC_BRIDGE::BRIDGES, bridge, "cidr"), 'r') { |f|
-      cidr = NetAddr::CIDR.create(f.readline().strip())
-    }
+    if File.exists?(File.join(BRIDGES, bridge, "cidr"))
+      open(File.join(BRIDGES, bridge, "cidr"), 'r') { |f|
+        cidr = NetAddr::CIDR.create(f.readline().strip())
+      }
+    end
     return cidr
   end
 
@@ -126,12 +128,24 @@ class XLXC_BRIDGE
   #
   def self.get_bridge_iface(bridge)
     iface = nil
-    if File.exists?(File.join(XLXC_BRIDGE::BRIDGES, bridge, "iface"))
-      open(File.join(XLXC_BRIDGE::BRIDGES, bridge, "iface"), 'r') { |f|
+    if File.exists?(File.join(BRIDGES, bridge, "iface"))
+      open(File.join(BRIDGES, bridge, "iface"), 'r') { |f|
         iface = f.readline().strip()
       }
     end
     return iface
+  end
+
+  # Get IP address of a container if it exists. 
+  #
+  def self.get_ip_addr(name, bridge)
+    addr = nil
+    if File.exists?(File.join(BRIDGES, bridge, "containers", name))
+      open(File.join(BRIDGES, bridge, "containers", name), 'r') { |f|
+        addr = f.readline().strip()
+      }
+    end
+    return addr
   end
 
   # Check to see if the given cidr is already present in ifconfig.
