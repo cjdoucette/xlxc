@@ -281,7 +281,6 @@ if __FILE__ == $PROGRAM_NAME
 
   if create
     if topology == "connected"
-      puts("here")
       create_connected_network(name, size, iface, script)
     elsif topology == "star"
       create_star_network(name, size, iface, script)
