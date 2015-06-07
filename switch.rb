@@ -1,7 +1,7 @@
 require 'pty'
 require 'fileutils'
 require 'io/console'
-require File.expand_path('../node.rb', __FILE__)
+require './node.rb'
 
 class Switch < Node
     """A Switch is a Node that is running (or has execed?)
@@ -14,7 +14,7 @@ class Switch < Node
         """dpid: dpid hex string (or nil to derive from name, e.g. s1 -> 1)
            opts: additional switch options
            listenPort: port to listen on for dpctl connections"""
-        Node.initialize( self, name, params )
+        super( self, name, params )
         @dpid = defaultDpid( dpid )
         @opts = opts
         @listenPort = listenPort
@@ -32,12 +32,12 @@ class Switch < Node
         if dpid
             # Remove any colons and make sure it's a good hex number
             dpid = dpid.translate( nil, ':' )
-            assert dpid.length <= @@dpidLen and ( dpid, 16 ).to_i >= 0
+            assert dpid.length <= @@dpidLen and dpid.to_i(16) >= 0
         else
             # Use hex of the first number in the switch name
             nums = re.findall( "\d+".inspect, @name )
             if nums
-                dpid = hex(( nums[ 0 ] ).to_i )[ 2: ]
+                dpid = nums[ 0 ].to_s(16) 
             else
                 raise Exception( 'Unable to derive default datapath ID - '+
                                  'please either specify a dpid or use a '+
@@ -105,7 +105,7 @@ class UserSwitch < Switch
         """Init.
            name: name for the switch
            dpopts: additional arguments to ofdatapath (--no-slicing)"""
-        Switch.initialize( self, name, kwargs )
+        super( self, name, kwargs )
         pathCheck( 'ofdatapath', 'ofprotocol',
                    moduleName='the OpenFlow reference user switch' +
                               '(openflow.org)' )
@@ -165,10 +165,9 @@ class UserSwitch < Switch
             parent = res['parent']
             intf.tc( "%s qdisc add dev %s " + parent +
                      " handle 1: htb default 0xfffe" )
-            intf.tc( "%s class add dev %s classid 1:0xffff parent 1: htb rate "
-                     + (ifspeed).to_s )
+            intf.tc( "%s class add dev %s classid 1:0xffff parent 1: htb rate " + ifspeed.to_s )
             intf.tc( "%s class add dev %s classid 1:0xfffe parent 1:0xffff " +
-                     "htb rate " + (minspeed).to_s + " ceil " + (ifspeed).to_s )
+                     "htb rate " + minspeed.to_s + " ceil " + ifspeed.to_s )
         end
     end
             
@@ -186,7 +185,7 @@ class UserSwitch < Switch
                         ( i ).to_s end 
                                     end ]
         cmd( 'ofdatapath -i ' + ','.join( intfs ) +
-                  ' punix:/tmp/' + @name + ' -d %s ' % self.dpid +
+                  ' punix:/tmp/' + @name + ' -d %s ' % @dpid +
                   @dpopts +
                   ' 1> ' + ofdlog + ' 2> ' + ofdlog + ' &' )
         cmd( 'ofprotocol unix:/tmp/' + @name +
@@ -201,7 +200,8 @@ class UserSwitch < Switch
                     tcreapply( intf )
                 end
             end
-        end            
+        end
+    end                
 
     def stop(  deleteIntfs=true )
         """Stop OpenFlow reference user datapath.
@@ -229,7 +229,7 @@ class OVSSwitch < Switch
            reconnectms: max reconnect timeout in ms (0/nil for default)
            stp: enable STP (false, requires failMode=standalone)
            batch: enable batch startup (false)"""
-        Switch.initialize( self, name, params )
+        super( self, name, params )
         @failMode = failMode
         @datapath = datapath
         @inband = inband
@@ -317,7 +317,7 @@ class OVSSwitch < Switch
                                     'Controller' ).strip()
             if controllers.start_with?( '[' ) and controllers.end_with?( ']' )
                 controllers = controllers[ 1 .. -1 ]
-                if controllers:
+                if controllers
                     @_uuids = [ 
                                     for c in controllers.split( ',' ) do c.strip() end]
                 end
@@ -349,14 +349,20 @@ class OVSSwitch < Switch
                 peer = intf1 if intf1 != intf else intf2
                 opts += ' type=patch options:peer=%s' % peer
             end
-        end        
+        end     
+
+        ret =  if not opts 
+                    ''
+                else 
+                    ' -- set Interface %s' % intf + opts 
+                end 
         
-        return '' if not opts else ' -- set Interface %s' % intf + opts
+        return ret
     end    
 
     def bridgeOpts( )
         "Return OVS bridge options"
-        opts = ( ' other_config:datapath-id=%s' % self.dpid +
+        opts = ( ' other_config:datapath-id=%s' % @dpid +
                  ' fail_mode=%s' % @failMode )
         if not @inband
             opts += ' other-config:disable-in-band=true'
@@ -383,19 +389,19 @@ class OVSSwitch < Switch
             raise Exception(
                 'OVS kernel switch does not work in a namespace' )
         end    
-        ( self.dpid, 16 ).to_i  # DPID must be a hex string
+        @dpid.to_i(16)  # DPID must be a hex string
         # Command to add interfaces
         intfs = ''.join( ' -- add-port %s %s' % [self, intf ] +
                          for intf in intfList() do
                          if self.ports[ intf ] and not intf.IP()
                             self.intfOpts( intf ) end end )
         # Command to create controller entries
-        clist = [ ( @name + c.name, '%s:%s:%d' %
-                  for c in controllers do [ c.protocol, c.IP(), c.port ] end) ]
+        clist = [  @name + c.name, '%s:%s:%d' %
+                  for c in controllers do [ c.protocol, c.IP(), c.port ] end ]
 
         if @listenPort
-            clist.append( ( @name + '-listen',
-                            'ptcp:%s' % @listenPort ) )
+            clist.append( @name + '-listen',
+                            'ptcp:%s' % @listenPort)
         end    
         ccmd = '-- --id=@%s create Controller target=\\"%s\\"'
         if @reconnectms
@@ -508,7 +514,7 @@ class OVSBridge < OVSSwitch
         """stp: enable Spanning Tree Protocol (false)
            see OVSSwitch for other options"""
         kwargs.merge!( failMode='standalone' )
-        OVSSwitch.initialize( self, *args, kwargs )
+        super( self, *args, kwargs )
     end    
 
     def start(  controllers )
@@ -516,12 +522,16 @@ class OVSBridge < OVSSwitch
         OVSSwitch.start( self, controllers=[] )
     end
         
-    def connected( )
+    def connected()
         "Are we forwarding yet?"
         if @stp
             status = dpctl( 'show' )
-            return  status.include? 'STP_FORWARD' and not status.include? 'STP_LEARN'
+            x = status.include? 'STP_FORWARD'
+            y = (status.include? 'STP_LEARN')
+            res = x and y
+            return res
         else
             return true
-    end        
+        end    
+    end   
 end

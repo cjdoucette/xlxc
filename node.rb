@@ -72,8 +72,7 @@ class Node
 
     @@inToNode = Hash.new  # mapping of input fds to nodes
     @@outToNode = Hash.new  # mapping of output fds to Nodes
-
-    # to access class variable
+    
     def self.portBase()
         return @@portBase
     end        
@@ -92,8 +91,12 @@ class Node
            fd: file descriptor
            returns: node"""
         node = cls.outToNode.fetch( fd )
-        #check this
-        return node or cls.inToNode.fetch( fd )
+        
+        """recheck"""
+        x = node
+        y = cls.inToNode.fetch( fd )
+        res = x or y
+        return res 
     end
         
     # Command support via shell process in namespace
@@ -144,7 +147,7 @@ class Node
         @readbuf = ''
         # Wait for prompt
         while true
-            data = @read( 1024 )
+            data = read( 1024 )
             if data[ -1 ] == 127.chr
                 break
             end    
@@ -154,7 +157,7 @@ class Node
         # +m: disable job control notification
         cmd( 'unset HISTFILE; stty -echo; set +m' )
     end
-        
+
     def mountPrivateDirs()
         "mount private directories"
         for directory in @privateDirs do
@@ -229,7 +232,7 @@ class Node
     def readline()
         """Buffered readline from node, non-blocking.
            returns: line (minus newline) or nil"""
-        @readbuf += @read( 1024 )
+        @readbuf += read( 1024 )
         if !@readbuf.index('\n')
             return nil
         end    
@@ -309,7 +312,7 @@ class Node
         write( cmd + '\n' )
         @lastPid = nil
         @waiting = true
-    end    
+    end 
 
     def sendInt( intr=3.chr )
         "Interrupt running command."
@@ -323,10 +326,11 @@ class Node
            timeoutms: timeout in ms or nil to wait indefinitely
            findPid: look for PID from mnexec -p"""
         waitReadable( timeoutms )
-        data = @rad( 1024 )
+        data = read( 1024 )
         pidre = "\[\d+\] \d+\r\n".inspect
         # Look for PID
         marker = 1.chr + "\d+\r\n".inspect
+        
         if findPid and data.include? 1.chr
             # suppress the job and PID of a backgrounded command
             if re.findall( pidre, data )
@@ -334,7 +338,7 @@ class Node
             end    
             # Marker can be read in chunks; continue until all of it is read
             while not re.findall( marker, data )
-                data += @read( 1024 )
+                data += read( 1024 )
             end    
             markers = re.findall( marker, data )
             if markers
@@ -346,7 +350,7 @@ class Node
         
         if data.length > 0 and data[ -1 ] == 127.chr
             @waiting = false
-            data = data[ ..-1 ]
+            data = data[0..-1]
         elsif  data.include? 127.chr
             @waiting = false
             data = data.replace( 127.chr, '' )
@@ -361,7 +365,11 @@ class Node
            appearing in the output stream.  Wait for the sentinel and return
            the output, including trailing newline.
            verbose: print output interactively"""
-        log = info if verbose else debug 
+        log = if verbose 
+                info 
+              else 
+                debug
+              end   
         output = ''
         while @waiting
             data = monitor( findPid=findPid )
@@ -375,7 +383,11 @@ class Node
         """Send a command, wait for output, and return it.
            cmd: string"""
         verbose = kwargs.fetch( 'verbose', false )
-        log = info if verbose else debug
+        log = if verbose 
+                info 
+              else 
+                debug
+              end
         log( '*** %s : %s\n' % [ @name, args ] )
         if @shell
             sendCmd( *args, kwargs )
@@ -383,8 +395,11 @@ class Node
         else
             warn( '(%s exited - ignoring cmd%s)\n' % [ self, args ] )
         end
-    end        
-
+    end 
+    # to access class variable
+   
+        
+    
     def cmdPrint(*args)
         """Call cmd and printing its output
            cmd: string"""
@@ -480,9 +495,9 @@ class Node
             warn( '*** defaultIntf: warning:', @name,
                   'has no interfaces\n' )
         end
-    end        
+    end
 
-    def intf(  intf=nil )
+        def intf(  intf=nil )
         """Return our interface object with given string name,
            default intf if name is falsy (nil, empty string, etc).
            or the input intf arg.
@@ -509,9 +524,9 @@ class Node
             if link
                 node1, node2 = link.intf1.node, link.intf2.node
                 if node1 == self and node2 == node
-                    connections += [ ( intf, link.intf2 ) ]
+                    connections += [ intf, link.intf2  ]
                 elsif node1 == node and node2 == self
-                    connections += [ ( intf, link.intf1 ) ]
+                    connections += [ intf, link.intf1  ]
                 end
             end
         end
@@ -591,7 +606,6 @@ class Node
         "Return MAC address of a node or specific interface."
         return intf( intf ).MAC()
     end
-
     def intfIsUp(  intf=nil )
         "Check if an interface is up."
         return intf( intf ).isUp()
@@ -627,10 +641,9 @@ class Node
         return result
     end    
 
-
     def config(  mac=nil, ip=nil,
                 defaultRoute=nil, lo='up', _params )
-        """Configure Node according to (optional) parameters:
+        """Configure Node according to (optional) parameters
            mac: MAC address for default interface
            ip: IP address for default interface
            ifconfig: arbitrary interface configuration
@@ -703,16 +716,17 @@ class Node
             cls.isSetup = true
             # Make pylint happy
             cls = getattr( type( cls ), '__base__', nil )
+        end    
     end        
 
     @classmethod
     def setup( cls )
         "Make sure our class dependencies are available"
         pathCheck( 'mnexec', 'ifconfig', moduleName='Mininet')
-    end    
-end
+    end
 
+end
+    
 class Host < Node 
     "A host is simply a Node"
-    pass
-end    
+end       
