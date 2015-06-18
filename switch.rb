@@ -535,3 +535,5 @@ class OVSBridge < OVSSwitch
         end    
     end   
 end
+
+ovs=OVSSwitch.new()

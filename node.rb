@@ -2,39 +2,24 @@ require 'pty'
 require 'fileutils'
 require 'io/console'
 
-"""
-import os
-import pty
-import re
-import signal
-import select
-from subprocess import Popen, PIPE
-from time import sleep
-
-from mininet.log import info, error, warn, debug
-from mininet.util import ( quietRun, errRun, errFail, moveIntf, isShellBuiltin,
-                           numCores, retry, mountCgroups )
-from mininet.moduledeps import moduleDeps, pathCheck, TUN
-from mininet.link import Link, Intf, TCIntf, OVSIntf
-from re import findall
-from distutils.version import StrictVersion
-"""
 
 
 class Node
     """A virtual network node is simply a shell in a network namespace.
        We communicate with it using pipes."""
-
     @@portBase = 0  # Nodes always start with eth0/port0, even in OF 1.0
 
-    def initialize( name, inNamespace=true, params )
+    def initialize( name, inNamespace=true, *parameters )
         """name: name of node
            inNamespace: in network namespace?
            privateDirs: list of private directory strings or tuples
            params: Node parameters (see config() for details)"""
-
+        params = case parameters.last
+        when Hash then parameters.pop
+        else {}
+        end   
         # Make sure class actually works
-        checkSetup()
+        #checkSetup()
 
         @name = params.fetch( 'name', name )
         @privateDirs = params.fetch( 'privateDirs', [] )
@@ -105,7 +90,8 @@ class Node
         if @shell
             error( "%s: shell is already running\n" % @name )
             return
-        end    
+        end  
+
         # mnexec: (c)lose descriptors, (d)etach from tty,
         # (p)rint pid, and run in (n)amespace
         if !mnopts
@@ -126,10 +112,12 @@ class Node
         # in the subprocess and insulate it from signals (e.g. SIGINT)
         # received by the parent
         master, slave = PTY.open
-        #master, slave = pty.openpty()
         @shell = _popen( cmd, stdin=slave, stdout=slave, stderr=slave,
                                   close_fds=false )
-        @stdin = File.new(master, "rw")
+        puts master
+        master=master.to_s
+        @stdin = File.new(master, "r+")
+        puts @stdin
         #@stdin = os.fdopen( master, 'rw' )
         @stdout = @stdin
         @pid = @shell.pid
@@ -161,7 +149,7 @@ class Node
     def mountPrivateDirs()
         "mount private directories"
         for directory in @privateDirs do
-            if directory.is_a tuple
+            if directory.is_a Array
                 # mount given private directory
                 privateDir = directory[ 1 ] % self.__dict__
                 mountPoint = directory[ 0 ]
@@ -180,7 +168,7 @@ class Node
     def unmountPrivateDirs()
         "mount private directories"
         for directory in @privateDirs do
-            if directory.is_a tuple
+            if directory.is_a Array
                 cmd( 'umount ', directory[ 0 ] )
             else
                 cmd( 'umount ', directory )
@@ -188,12 +176,16 @@ class Node
         end         
     end
 
-    def _popen( cmd, params )
+    def _popen( cmd, *parameters )
         """Internal method: spawn and return a process
             cmd: command to run (list)
             params: parameters to Popen()"""
         # Leave this is as an instance method for now
-        assert self
+        params = case parameters.last
+        when Hash then parameters.pop
+        else {}
+        end
+        #assert self
         return IO.popen( cmd, params )
     end    
 
@@ -222,8 +214,8 @@ class Node
             result = @readbuf
             @readbuf = ''
         else
-            result = @readbuf[0 .. maxbytes ]
-            @readbuf = @readbuf[ maxbytes .. @readbuf.length ]
+            result = @readbuf[0..maxbytes]
+            @readbuf = @readbuf[maxbytes..@readbuf.length ]
         end
 
         return result
@@ -232,13 +224,13 @@ class Node
     def readline()
         """Buffered readline from node, non-blocking.
            returns: line (minus newline) or nil"""
-        @readbuf += read( 1024 )
+        @readbuf += read(1024)
         if !@readbuf.index('\n')
             return nil
         end    
         pos = @readbuf.index( '\n' )
-        line = @readbuf[ 0... pos ]
-        @readbuf = @readbuf[ pos + 1 ]
+        line = @readbuf[0..pos]
+        @readbuf = @readbuf[pos + 1]
         return line
     end    
 
@@ -277,12 +269,16 @@ class Node
         end
     end
 
-    def sendCmd( *args, kwargs )
+    def sendCmd( *args )
         """Send a command, followed by a command to echo a sentinel,
            and return without waiting for the command to complete.
            args: command and arguments, or string
            printPid: print command's PID? (false)"""
-        assert @shell and not @waiting
+        kwargs = case args.last
+        when Hash then args.pop
+        else {}
+        end   
+        #assert @shell and not @waiting
         printPid = kwargs.fetch( 'printPid', false )
         # Allow sendCmd( [ list ] )
         if args.length == 1 and args[0].is_a Array
@@ -379,9 +375,13 @@ class Node
         return output
     end    
 
-    def cmd(*args, kwargs )
+    def cmd(*args)
         """Send a command, wait for output, and return it.
            cmd: string"""
+        kwargs = case args.last
+        when Hash then args.pop
+        else {}
+        end   
         verbose = kwargs.fetch( 'verbose', false )
         log = if verbose 
                 info 
@@ -406,10 +406,16 @@ class Node
         return cmd( *args, { 'verbose'=> true } )
     end    
 
-    def popen( *args, kwargs )
+    def popen( *args )
         """Return a Popen() object in our namespace
            args: Popen() args, single list, or string
            kwargs: Popen() keyword args"""
+        
+        kwargs = case args.last
+        when Hash then args.pop
+        else {}
+        end
+
         defaults = { 'stdout'=> PIPE, 'stderr'=> PIPE,
                      'mncmd'=>
                      [ 'mnexec', '-da', @pid.to_s ] }
@@ -433,15 +439,19 @@ class Node
         cmd = defaults.pop( 'mncmd' ) + cmd
         # Shell requires a string, not a list!
         if defaults.get( 'shell', false )
-            cmd = cmd.join( ' ' )
+            cmd = cmd.join(' ')
         end    
         popen = _popen( cmd, defaults )
         return popen
     end    
 
-    def pexec(*args, kwargs )
+    def pexec(*args)
         """Execute a command using popen
            returns: out, err, exitcode"""
+        kwargs = case args.last
+        when Hash then args.pop
+        else {}
+        end
         popen = popen( *args, stdin=PIPE, stdout=PIPE, stderr=PIPE,
                             kwargs )
         # Warning: this can fail with large numbers of fds!
@@ -474,12 +484,12 @@ class Node
         if port is nil
             port = newPort()
         end    
-        @intfs[ port ] = intf
-        @ports[ intf ] = port
-        @nameToIntf[ intf.name ] = intf
-        debug( '\n' )
-        debug( 'added intf %s (%d) to node %s\n' % [
-                intf, port, @name ] )
+        @intfs[port] = intf
+        @ports[intf] = port
+        @nameToIntf[intf.name] = intf
+        debug('\n')
+        debug('added intf %s (%d) to node %s\n' % [
+                intf, port, @name ])
         if @inNamespace
             debug( 'moving', intf, 'into namespace for', @name, '\n' )
             moveIntfFn( intf.name, self  )
@@ -588,12 +598,16 @@ class Node
         return intf( intf ).setMAC( mac )
     end    
 
-    def setIP(  ip, prefixLen=8, intf=nil, kwargs )
+    def setIP(  ip, prefixLen=8, intf=nil, *args )
         """Set the IP address for an interface.
            intf: intf or intf name
            ip: IP address as a string
            prefixLen: prefix length, e.g. 8 for /8 or 16M addrs
            kwargs: any additional arguments for intf.setIP"""
+        kwargs = case args.last
+        when Hash then args.pop
+        else {}
+        end
         return intf( intf ).setIP( ip, prefixLen, kwargs )
     end    
 
@@ -616,12 +630,16 @@ class Node
     # Dealing with subclasses and superclasses is slightly
     # annoying, but at least the information is there!
 
-    def setParam(  results, method, param )
+    def setParam(  results, method, *parameters )
         """Internal method: configure a *single* parameter
            results: dict of results to update
            method: config method name
            param: arg=value (ignore if value=nil)
            value may also be list or dict"""
+        param = case parameters.last
+        when Hash then parameters.pop
+        else {}
+        end   
         name, value = param.items()[ 0 ]
         if value is nil
             return
@@ -642,7 +660,7 @@ class Node
     end    
 
     def config(  mac=nil, ip=nil,
-                defaultRoute=nil, lo='up', _params )
+                defaultRoute=nil, lo='up', *_parameters )
         """Configure Node according to (optional) parameters
            mac: MAC address for default interface
            ip: IP address for default interface
@@ -652,6 +670,10 @@ class Node
         # If we were overriding this method, we would call
         # the superclass config method here as follows:
         # r = Parent.config( _params )
+        _params = case _parameters.last
+        when Hash then _parameters.pop
+        else {}
+        end
         r = Hash.new
         setParam( r, 'setMAC', mac=mac )
         setParam( r, 'setIP', ip=ip )
@@ -661,10 +683,13 @@ class Node
         return r
     end    
 
-    def configDefault(  moreParams )
+    def configDefault(  *moreParameters )
         "Configure with default parameters"
+        moreParams = case moreParameters.last
+        when Hash then moreParameters.pop
+        else {}
+        end
         @params.merge!(moreParams)
-        #@params.update( moreParams )
         config( @params )
     end
         
@@ -729,4 +754,6 @@ end
     
 class Host < Node 
     "A host is simply a Node"
-end       
+end      
+params={}
+vrn = Node.new('vrn',params) 
