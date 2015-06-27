@@ -1,7 +1,13 @@
 require 'pty'
 require 'fileutils'
 require 'io/console'
-
+require 'optparse'
+require 'rubygems'
+require 'netaddr'
+require 'ipaddr'
+require './xlxc'
+require './xlxc-bridge'
+require './xlxc-create'
 
 
 class Node
@@ -134,19 +140,7 @@ class Node
     @lastCmd = nil
     @lastPid = nil
     @readbuf = ''
-    # Wait for prompt
-    
-    while true
-      data = read(1024)
-      if data[-1] == 127.chr
-        break
-      end
-      puts 'running'
-      #Process.wait()  
-      #@pollOut.poll()
-    end  
-    @waiting = false
-    # +m: disable job control notification
+    `ruby xlxc-create.rb -n #{@name} -b #{bridge} --script`
     cmd('unset HISTFILE; stty -echo; set +m')
   end
 
@@ -483,7 +477,7 @@ class Node
        intf: interface
        port: port number (optional, typically OpenFlow port number)
        moveIntfFn: function to move interface (optional)"""
-    if port is nil
+    if port == nil
       port = newPort()
     end  
     @intfs[port] = intf
@@ -507,7 +501,7 @@ class Node
     end
   end
 
-    def intf(intf=nil)
+  def intf(intf=nil)
     """Return our interface object with given string name,
        default intf if name is falsy (nil, empty string, etc).
        or the input intf arg.
@@ -641,7 +635,7 @@ class Node
     else {}
     end   
     name, value = param.items()[0]
-    if value is nil
+    if value == nil
       return
     end  
     f = getattr(self, method, nil)
@@ -753,4 +747,4 @@ class Host < Node
   "A host is simply a Node"
 end    
 params={}
-vrn = Node.new('vrn',params) 
+#vrn = Node.new('vrn',params) 
