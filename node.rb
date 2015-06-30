@@ -140,7 +140,7 @@ class Node
     @lastCmd = nil
     @lastPid = nil
     @readbuf = ''
-    `ruby xlxc-create.rb -n #{@name} -b #{bridge} --script`
+    `ruby xlxc-create.rb -n #{@name} --script`
     cmd('unset HISTFILE; stty -echo; set +m')
   end
 
@@ -744,7 +744,22 @@ class Node
 end
   
 class Host < Node 
-  "A host is simply a Node"
+  
+  @@addedSwitch=false
+  
+  def addSwitch(switch)
+    if !File.exist?(File.join(XLXC_BRIDGE::BRIDGES, switch))
+      puts("Bridge #{bridge} does not exist.")
+      exit
+    end
+    ContainerCreate.config_container(@name, switch)
+    @@addedSwitch=true
+  end
+
+  def self.addedSwitch()
+    return @@addedSwitch
+  end  
+
 end    
 params={}
 #vrn = Node.new('vrn',params) 

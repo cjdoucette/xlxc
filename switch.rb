@@ -125,3 +125,4 @@ ovs.addIntf('intf2')
 ovs.attachAll()
 puts ovs.intfNames
 puts ovs.portNumbers
+assert 
