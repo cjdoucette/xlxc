@@ -747,7 +747,7 @@ class Host < Node
   
   @@addedSwitch=false
   
-  def addSwitch(switch)
+  def addCSwitch(switch)
     if !File.exist?(File.join(XLXC_BRIDGE::BRIDGES, switch))
       puts("Bridge #{bridge} does not exist.")
       exit

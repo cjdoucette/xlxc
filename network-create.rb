@@ -9,7 +9,7 @@ class Create
     @hosts = []
     @switches = []
     @links = []
-
+    @hslinks = []
     @nameToNode = {}  # name to Node (Host/Switch) objects
 
     @terms = []  # list of spawned xterm processes
@@ -32,6 +32,11 @@ class Create
       addLink(srcName, dstName, params)      
     end
 
+    #adding links b/w switch and host
+    for host,switch in topo.hslinks(sort=True, withInfo=True)
+      addHslinks(host, switch)      
+    end
+    
   end
 
   def addHost(name, *args)
@@ -69,5 +74,9 @@ class Create
     return l
   end
   
+  def addHslinks(host, switch)
+    host.addCSwitch(switch)
+  end
+
 end
 
