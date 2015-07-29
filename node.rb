@@ -15,10 +15,7 @@ class Node
      We communicate with it using pipes."""
   @@portBase = 0  # Nodes always start with eth0/port0, even in OF 1.0
   def initialize(name, inNamespace=true, *parameters)
-    """name: name of node
-     inNamespace: in network namespace?
-     privateDirs: list of private directory strings or tuples
-     params: Node parameters (see config() for details)"""
+    
     params = case parameters.last
     when Hash then parameters.pop
     else {}
@@ -140,7 +137,6 @@ class Node
     @lastCmd = nil
     @lastPid = nil
     @readbuf = ''
-    `ruby xlxc-create.rb -n #{@name} --script`
     cmd('unset HISTFILE; stty -echo; set +m')
   end
 
@@ -232,7 +228,7 @@ class Node
     return line
   end  
 
-  def write( ata)
+  def write(data)
     """Write data to node.
        data: string"""
     File.new(@stdin.fileno(), "r+").syswrite(data)
@@ -746,7 +742,10 @@ end
 class Host < Node 
   
   @@addedSwitch=false
-  
+  def createHost()
+    `ruby xlxc-create.rb -n #{@name} --script`
+  end
+
   def addCSwitch(switch)
     if !File.exist?(File.join(XLXC_BRIDGE::BRIDGES, switch))
       puts("Bridge #{bridge} does not exist.")

@@ -63,6 +63,7 @@ class ContainerCreate
 
     optparse.parse!
     return options
+    
   end
 
   # Perform error checks on the parameters of the script and options
