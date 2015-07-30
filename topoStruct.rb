@@ -7,7 +7,6 @@ class Graph
   end
   
   def add_node(node, attr_dict=nil, *attributes)
-    puts attr_dict
     """Add node to graph
        attr_dict: attribute dict (optional)
        attrs: more attributes (optional)
@@ -19,8 +18,6 @@ class Graph
     if !attr_dict
       attr_dict = {} 
     end  
-    puts attr_dict
-    puts attr_dict.is_a? Array
     attr_dict.merge!(attrs)
     @node[node] = attr_dict
   end  
@@ -48,7 +45,7 @@ class Graph
       @node[dst] = {}
     end  
     if !@edge.has_key?([src, dst])
-      @edge[src, dst] = {}
+      @edge[src+"-"+dst] = {}
     end  
   end  
 
@@ -88,14 +85,22 @@ class Graph
       return @node.keys()  
   end
     
-  def edges(data)
+  def edges()
+    edges=[]
     for key in @edge.keys       
-      src = key[0]
-      dst = key[1]
-      yield(src, dst)
+      x = key.split('-')
+      src = x[0]    
+      dst = x[1]
+      tmp = [src, dst]
     end
+    edges.push(tmp)
+    return edges
   end    
-    
+  
+  def printGraph()
+    puts @node
+  end
+
   def __len__()
     "Return the number of nodes"
     return @node.length
@@ -206,6 +211,12 @@ class Topo
     end  
   end  
 
+  def printGraph()
+    @graph.printGraph()
+  end 
+  def assignDepth()
+    @graph.assignDepth()
+  end  
   # This legacy port managefment mechanism is clunky and will probably
   # be removed at some point  
   def nodeInfo(name)
@@ -252,3 +263,5 @@ class MinimalTopo < SingleSwitchTopo
 end    
 
 buildtopo = SingleSwitchTopo.new()
+buildtopo.assignDepth()
+buildtopo.printGraph()
