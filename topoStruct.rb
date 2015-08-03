@@ -1,25 +1,20 @@
 
 class Graph
   "Build structure of topology"
+  attr_reader :node
+  attr_reader :edge
   def initialize
     @node = {}
     @edge = {}
   end
   
-  def add_node(node, attr_dict=nil, *attributes)
-    """Add node to graph
-       attr_dict: attribute dict (optional)
-       attrs: more attributes (optional)
-       warning: updates attr_dict with attrs"""
-    attrs = case attributes.last
-    when Hash then attributes.pop
-    else {}
-    end
-    if !attr_dict
-      attr_dict = {} 
+  def add_node(node, switch)
+    """Add node to graph"""
+    @node[node]={}
+    if switch
+      tmp = {'isSwitch'=>true}
+      @node[node].merge!(tmp)
     end  
-    attr_dict.merge!(attrs)
-    @node[node] = attr_dict
   end  
 
   def add_edge(src, dst, attr_dict=nil, *attributes)
@@ -60,19 +55,20 @@ class Graph
           break
         end
       end
-      if flag == 0
-        tmp = {'depth'=> 0,'parent'=> nil}
+
+      if flag == 0 && !@node[node].has_key?('visited')
+        tmp = {'depth'=> 0,'parent'=> nil,'visited'=>true}
         @node[node].merge!(tmp)
         subTreeDepth(node)
-      end  
+      end 
     end          
 
   end  
 
   def subTreeDepth(node)
     for src,dst in edges
-      if dst == node
-        tmp = {'depth' => (@node[dst]['depth'])+1, 'parent' => node}   
+      if dst == node && !@node[src].has_key?('visited')
+        tmp = {'depth' => (@node[dst]['depth'])+1, 'parent' => node, 'visited'=>true}   
         @node[src].merge!(tmp)
         subTreeDepth(src)
       end
@@ -82,19 +78,19 @@ class Graph
   def nodes()
     """Return list of graph nodes
        data: return list of ( node, attrs)"""
-      return @node.keys()  
+    return @node.keys()  
   end
     
   def edges()
-    edges=[]
+    edg=[]
     for key in @edge.keys       
       x = key.split('-')
       src = x[0]    
       dst = x[1]
       tmp = [src, dst]
+      edg.push(tmp)
     end
-    edges.push(tmp)
-    return edges
+    return edg
   end    
   
   def printGraph()
@@ -110,21 +106,9 @@ end
 class Topo
   "Data center network representation for structured multi-trees."
   def initialize(*args)
-    params = case args.last
-    when Hash then args.pop
-    else {}
-    end   
-    
-    """Topo object.
-       Optional named parameters:
-       hinfo: default host options
-       sopts: default switch options
-       lopts: default link options
+    """Topo object
        calls build()"""
     @graph = Graph.new()
-    #@hopts = params.pop( 'hopts', {} )
-    #@sopts = params.pop( 'sopts', {} )
-    #@lopts = params.pop( 'lopts', {} )
     # ports[src][dst][sport] is port on dst that connects to src
     @ports = {}
     build( *args)
@@ -134,37 +118,28 @@ class Topo
     pass
   end
     
-  def addNode( name, *opts )
+  def addNode( name, switch=false )
     """Add Node to graph.
-       name: name
-       opts: node options
        returns: node name"""
-       opts = {}
-    @graph.add_node( name, opts )
+    @graph.add_node( name, switch )
     return name
   end  
 
   def addHost( name, *opts )
     """Convenience method: Add host to graph.
-       name: host name
-       opts: host options
        returns: host name"""  
-    return addNode( name, opts )
+    return addNode( name )
   end  
   
   def addSwitch( name, *opts )
     """Convenience method: Add switch to graph.
-       name: switch name
-       opts: switch options
        returns: switch name"""
-    
-    result = addNode( name, opts )
+    result = addNode( name, true )
     return result
   end
     
   def addLink( node1, node2, *opts )
     """node1, node2: nodes to link together
-       opts: link options (optional)
        returns: link info key"""
     opts = {}
     @graph.add_edge(node1, node2, opts )
@@ -174,41 +149,60 @@ class Topo
     return @graph.nodes()
   end
     
-  def isSwitch(n)
-    "Returns true if node is a switch."
-    return @graph.node[n].fetch('isSwitch', false)
-  end
     
   def switches()
-    return  [for n in nodes() do 
-              if isSwitch(n) 
-                n 
-              end 
-            end]  
+    """Return switchs.
+       returns: list of switchs"""
+    switchlist = [] 
+    for n in nodes()  
+      if isSwitch(n)
+        switchlist.push(n)
+      end
+    end  
+    #puts switchlist
+    return switchlist
   end
     
   def hosts()
     """Return hosts.
        returns: list of hosts"""
-    return [for n in nodes() do 
-              if !isSwitch(n) 
-                n 
-              end 
-            end]
+    hostlist = [] 
+    for n in nodes()  
+      if !isSwitch(n)
+        hostlist.push(n)
+      end
+    end  
+    #puts hostlist
+    return hostlist
   end
 
+  def isSwitch(n)
+        "Returns true if node is a switch."
+    return @graph.node[n].fetch( 'isSwitch', false )
+  end
+        
   def links()
-    for src, dst in @graph.edges()
-      yield(src, dst)
-    end  
+    return @graph.edges  
   end
 
-  def hslinks()
+  def hsLinks()
+    hstswt=[]
     for src, dst in links
-      if !isSwitch(src) 
-        yield(src, dst)
+      if !isSwitch(src) && isSwitch(dst) 
+        hstswt.push(src, dst)
       end        
-    end  
+    end
+    return hstswt  
+  end  
+
+  def switchLinks()
+    lnks=[]
+    for src, dst in links
+      if isSwitch(src) && isSwitch(dst) 
+        lnks.push(src, dst)
+      end        
+    end
+    return lnks  
   end  
 
   def printGraph()
@@ -238,30 +232,38 @@ class SingleSwitchTopo < Topo
       addLink( host, switch )
     end  
   end    
-end
+end   
 
-class SingleSwitchReversedTopo < Topo 
+class TreeTopo < Topo 
+  "Topology for a tree network with a given depth and fanout."
 
-  def build( k=2 )
-    "k: number of hosts"
-    @k = k
-    switch = addSwitch( 's1' )
-    for h in 1..k
-      host = addHost( 'h%s' % h )
-      addLink( host, switch )
-    end
+  def build( depth=1, fanout=2)
+    # Numbering:  h1..N, s1..M
+    @hostNum = 1
+    @switchNum = 1
+    # Build topology
+    addTree( depth, fanout )
   end
-
-end      
-
-
-class MinimalTopo < SingleSwitchTopo 
-  "Minimal topology with two hosts and one switch"
-  def build()
-    return SingleSwitchTopo.build( k=2 )
-  end
+    
+  def addTree( depth, fanout )
+    """Add a subtree starting with node n.
+       returns: last node added"""
+    isSwitch = depth > 0
+    if isSwitch
+      node = addSwitch( 's%s' % @switchNum )
+      @switchNum += 1
+      for i in 1..fanout
+        child = addTree( depth - 1, fanout )
+        addLink( child,node )
+      end 
+    else
+      node = addHost( 'h%s' % @hostNum )
+      @hostNum += 1
+    end      
+    return node
+  end  
 end    
 
-buildtopo = SingleSwitchTopo.new()
+buildtopo = TreeTopo.new(3,2)
 buildtopo.assignDepth()
-buildtopo.printGraph()
+buildtopo.printGraph

@@ -5,7 +5,7 @@ require './switch.rb'
 require './topoStruct'
 
 class Create
-  def initialize(topo=SingleSwitchTopo.new())
+  def initialize(topo=simpletopo)
     @topo = topo
     @hosts = []
     @switches = []
