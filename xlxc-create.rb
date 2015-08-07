@@ -148,7 +148,7 @@ class ContainerCreate
   # Copy a default LXC configuration file and add configuration
   # information for it that is specific to this container, such
   # as a network interface, hardware address, and bind mounts.
-  #
+  
   def self.config_container(name, bridge)
     container = File.join(XLXC::LXC, name)
     rootfs = File.join(container, "rootfs")

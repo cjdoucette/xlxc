@@ -5,7 +5,6 @@
 #
 # This Ruby script creates and initializes an Ethernet bridge for use
 # with Linux XIA containers (XLXC).
-#
 
  
 require 'fileutils'
@@ -61,6 +60,12 @@ class XLXC_BRIDGE
       opts.on('-i', '--iface ARG', 'Gateway interface on host') do |iface|
         options[:iface] = iface
       end
+
+      options[:path] = nil
+      opts.on('-p', '--path', 'Bridge path') do |path|
+        options[:path] = path
+      end
+
     end
 
     optparse.parse!
@@ -281,8 +286,8 @@ class XLXC_BRIDGE
     gateway_address = cidr.nth(1)
     netmask = IPAddr.new('255.255.255.255').mask(cidr.bits()).to_s()
 
-    `brctl addbr #{bridge}`
-    `brctl setfd #{bridge} 0`
+    `ovs-vsctl add-br #{bridge}`
+    #{}`brctl setfd #{bridge} 0`
     `ifconfig #{bridge} #{gateway_address} netmask #{netmask} promisc up`
     if gateway_iface != nil
       `iptables -t nat -A POSTROUTING -o #{gateway_iface} -j MASQUERADE`
@@ -295,16 +300,18 @@ class XLXC_BRIDGE
   def self.add_bridge(options)
     bridge = options[:bridge]
     gateway_iface = options[:iface]
+    path = options[:path]
+
     cidr = NetAddr::CIDR.create(options[:cidr])
 
     add_interface(bridge, cidr, gateway_iface)
 
-    `mkdir -p #{File.join(BRIDGES, bridge)}`
-    `echo #{cidr.to_s()} > #{File.join(BRIDGES, bridge, "cidr")}`
+    `mkdir -p #{File.join(path, bridge)}`
+    `echo #{cidr.to_s()} > #{File.join(path, bridge, "cidr")}`
     if gateway_iface != nil
-      `echo #{gateway_iface} > #{File.join(BRIDGES, bridge, "iface")}`
+      `echo #{gateway_iface} > #{File.join(path, bridge, "iface")}`
     end
-    `mkdir #{File.join(BRIDGES, bridge, "containers")}`
+    `mkdir #{File.join(path, bridge, "containers")}`
   end
 
   # Delete an Ethernet bridge, if no containers are using it.
@@ -312,8 +319,9 @@ class XLXC_BRIDGE
   def self.delete_bridge(options)
     bridge = options[:bridge]
     force = options[:force]
+    path = options[:path]
 
-    cont_dir = File.join(BRIDGES, bridge, "containers")
+    cont_dir = File.join(path, bridge, "containers")
     # Remove '.' and '..' files in directory.
     size = Dir.entries(cont_dir).size() - 2
     if !force and size != 0
@@ -321,7 +329,7 @@ class XLXC_BRIDGE
            "Use --force to delete the bridge, potentially\n" \
            "corrupting the networks for these containers\n"  \
            "that use this bridge:")
-      Dir.foreach(File.join(BRIDGES, bridge, "containers")) do |item|
+      Dir.foreach(File.join(path, bridge, "containers")) do |item|
         next if item == '.' or item == '..'
         puts("  " + item)
       end
@@ -329,8 +337,8 @@ class XLXC_BRIDGE
     end
 
     `ifconfig #{bridge} promisc down`
-    `brctl delbr #{bridge}`
-    `rm -r #{File.join(BRIDGES, bridge)}`
+    `ovs-vsctl del-br #{bridge}`
+    `rm -r #{File.join(path, bridge)}`
   end
 
 

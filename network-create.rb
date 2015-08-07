@@ -11,9 +11,8 @@ class Create
     @switches = []
     @links = []
     @hslinks = []
+    @slinks = []
     @nameToNode = {}  # name to Node (Host/Switch) objects
-
-    @terms = []  # list of spawned xterm processes
     build()
   end
 
@@ -29,26 +28,49 @@ class Create
     end
 
     #adding links
-    for srcName, dstName, params in topo.links(sort=True, withInfo=True)
-      addLink(srcName, dstName, params)      
+    #for srcName, dstName in topo.links
+    #  addLink(srcName, dstName)      
+    #end
+    
+    #adding links b/w switches
+    for srcName, dstName in topo.switchLinks()
+      addSwitchLink(srcName, dstName)      
     end
 
     #adding links b/w switch and host
-    for host,switch in topo.hslinks(sort=True, withInfo=True)
-      addHslinks(host, switch)      
+    for host,switch in topo.hslinks()
+      addHsLinks(host, switch)      
+    end    
+
+  end
+  
+
+  def getNodeByName( *args )
+    "Return node(s) with given name(s)"
+    names = []
+    for n in args
+      names.push(@nameToNode[n])
     end
-    
+    return names
   end
 
+  def get( *args ):
+    return getNodeByName(*args)
+  end       
+  
   def addHost(name, *args)
-    h = Host.new(name,args)
+    parent = topo.graph.node[name].fetch['parent']
+    path = topo.graph.node[name].fetch['path']
+    h = Host.new(name, parent, path)
     @hosts.push(h)
     @nameToNode[name] = h
     return h
   end
 
   def addSwitch(name, *args)
-    s = Host.new(name,args)
+    parent = topo.graph.node[name].fetch['parent']
+    path = topo.graph.node[name].fetch['parent']
+    s = Switch.new(name, parent, path)
     @switches.push(s)
     @nameToNode[name] = s
     return s
@@ -75,9 +97,25 @@ class Create
     return l
   end
   
-  def addHsLinks(host, switch)
-    host.addCSwitch(switch)
+  def addSwitchLinks(switch1, switch2)
+    l = link( switch1, switch2, *options )
+    @slinks.push(l)
+    return l
   end
 
+  def addHsLinks(host, switch)
+    l = link( node1, node2, *options )
+    @hslinks.push(l)
+    host.addCSwitch(switch)
+    return l
+  end
+
+  def configure()
+
+  end
+  
+  def start()
+  end  
+  
 end
 

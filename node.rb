@@ -14,7 +14,7 @@ class Node
   """A virtual network node is simply a shell in a network namespace.
      We communicate with it using pipes."""
   @@portBase = 0  # Nodes always start with eth0/port0, even in OF 1.0
-  def initialize(name, inNamespace=true, *parameters)
+  def initialize(name, parent, path, *parameters)
     
     params = case parameters.last
     when Hash then parameters.pop
@@ -25,7 +25,7 @@ class Node
 
     @name = params.fetch('name', name)
     @privateDirs = params.fetch('privateDirs', [])
-    @inNamespace = params.fetch('inNamespace', inNamespace)
+    @inNamespace = params.fetch('inNamespace', true)
 
     # Stash configuration parameters for future reference
     @params = params
@@ -35,26 +35,21 @@ class Node
              # replace with Port objects, eventually ?
     @nameToIntf = Hash.new  # dict of interface names to Intfs
 
-    
-    @shell=nil 
+    @parent = parent
+    @path = path
+    @shell = nil 
     @execed=nil 
-    @pid=nil
-    @stdin=nil 
-    @stdout=nil
-    @lastPid=nil 
-    @lastCmd=nil 
+    @pid = nil
+    @stdin = nil 
+    @stdout = nil
+    @lastPid = nil 
+    @lastCmd = nil 
     @pollOut  = nil
 
     @waiting = false
     @readbuf = ''
-
-    # Start command interpreter shell
-    startShell()
-    puts 'startShell done'
-    mountPrivateDirs()   
   end
   
-
   # File descriptor to node mapping support
   # Class variables and methods
 
@@ -707,11 +702,7 @@ class Node
     intfs = ((['%s:%s' % for i in intfList() do [i.name, i.IP()] end]).join(','))
     return '<%s %s: %s pid=%s> ' % [self.__class__.__name__, @name, intfs, @pid]
   end  
-
-  def __str__()
-    "Abbreviated string representation"
-    return @name
-  end  
+ 
   # Automatic class setup support
 
   @@isSetup = false
@@ -742,16 +733,16 @@ end
 class Host < Node 
   
   @@addedSwitch=false
-  def createHost()
+  def create()
     `ruby xlxc-create.rb -n #{@name} --script`
   end
 
   def addCSwitch(switch)
     if !File.exist?(File.join(XLXC_BRIDGE::BRIDGES, switch))
-      puts("Bridge #{bridge} does not exist.")
+      puts("switch #{switch} does not exist.")
       exit
     end
-    ContainerCreate.config_container(@name, switch)
+    ContainerCreate.config_container(@name, @parent)
     @@addedSwitch=true
   end
 

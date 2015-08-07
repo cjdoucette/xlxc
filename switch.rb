@@ -7,16 +7,13 @@ class OVSSwitch < Node
   "OVSBridge is an OVSSwitch in standalone/bridge mode"
   @@portBase = 1 
 
-  def initialize(name, *args)
-    @name = name
-    @intfs = {}
-    @ports = {}
-    @shell = nil
-    @pid = nil
+  def initialize(name, parent, path *args)
+    super( name, parent, path, args )
+    @cidr = nil     
   end  
 
   def create()
-    `ovs-vsctl add-br #{@name}`
+    `ruby xlxc-bridge.rb -b #{@name} -c #{@cidr} -p #{@path}`
   end  
 
   def start()

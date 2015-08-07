@@ -1,3 +1,10 @@
+require 'fileutils'
+require 'optparse'
+require 'rubygems'
+require 'netaddr'
+require 'ipaddr'
+require './xlxc'
+require './xlxc-bridge.rb'
 
 class Graph
   "Build structure of topology"
@@ -57,7 +64,7 @@ class Graph
       end
 
       if flag == 0 && !@node[node].has_key?('visited')
-        tmp = {'depth'=> 0,'parent'=> nil,'visited'=>true}
+        tmp = {'depth'=> 0, 'parent'=> nil, 'visited'=>true, 'path'=>File.join(XLXC_BRIDGE::BRIDGES)}
         @node[node].merge!(tmp)
         subTreeDepth(node)
       end 
@@ -68,7 +75,8 @@ class Graph
   def subTreeDepth(node)
     for src,dst in edges
       if dst == node && !@node[src].has_key?('visited')
-        tmp = {'depth' => (@node[dst]['depth'])+1, 'parent' => node, 'visited'=>true}   
+        tmp = {'depth' => (@node[dst]['depth'])+1, 'parent' => node, 'visited'=>true, 
+          'path' => File.join(@node[node].fetch('path'), node)}   
         @node[src].merge!(tmp)
         subTreeDepth(src)
       end
@@ -94,7 +102,9 @@ class Graph
   end    
   
   def printGraph()
-    puts @node
+    for node in @node
+      puts node  
+    end  
   end
 
   def __len__()

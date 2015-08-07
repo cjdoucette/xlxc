@@ -62,7 +62,7 @@ class XLXC
     # Bind mount (read-only) directories from host.
     for dir in BIND_MOUNTED_DIRECTORIES
       if !Dir.exists?(File.join(rootfs, dir)) ||
-         Dir.entries(File.join(rootfs, dir)).size() <= 2
+        Dir.entries(File.join(rootfs, dir)).size() <= 2
         bind_mount(dir, File.join(rootfs, dir), true, true)
       end
     end
