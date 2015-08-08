@@ -735,6 +735,7 @@ class Host < Node
   @@addedSwitch=false
   def create()
     `ruby xlxc-create.rb -n #{@name} --script`
+    ContainerCreate.config_container(@name, @parent)
   end
 
   def addCSwitch(switch)
@@ -742,7 +743,6 @@ class Host < Node
       puts("switch #{switch} does not exist.")
       exit
     end
-    ContainerCreate.config_container(@name, @parent)
     @@addedSwitch=true
   end
 

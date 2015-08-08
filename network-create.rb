@@ -4,8 +4,13 @@ require 'io/console'
 require './switch.rb'
 require './topoStruct'
 
-class Create
-  def initialize(topo=SingleSwitchTopo.new())
+class NetworkCreate
+  
+  attr_reader :topo
+  attr_reader :nameToNode
+
+  def initialize(topo=SingleSwitchTopo.new()) 
+  
     @topo = topo
     @hosts = []
     @switches = []
@@ -14,6 +19,7 @@ class Create
     @slinks = []
     @nameToNode = {}  # name to Node (Host/Switch) objects
     build()
+  
   end
 
   def build()
@@ -31,7 +37,7 @@ class Create
     #for srcName, dstName in topo.links
     #  addLink(srcName, dstName)      
     #end
-    
+    """
     #adding links b/w switches
     for srcName, dstName in topo.switchLinks()
       addSwitchLink(srcName, dstName)      
@@ -41,7 +47,7 @@ class Create
     for host,switch in topo.hslinks()
       addHsLinks(host, switch)      
     end    
-
+    """
   end
   
 

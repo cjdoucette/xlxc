@@ -44,6 +44,7 @@ class XLXC_BRIDGE
       options[:cidr] = nil
       opts.on('-c', '--cidr ARG', 'Bridge IPv4 address in CIDR') do |cidr|
         options[:cidr] = cidr
+        puts cidr
       end
 
       options[:delete] = false
@@ -62,8 +63,9 @@ class XLXC_BRIDGE
       end
 
       options[:path] = nil
-      opts.on('-p', '--path', 'Bridge path') do |path|
+      opts.on('-p', '--path ARG', 'Bridge path') do |path|
         options[:path] = path
+        puts path
       end
 
     end
@@ -100,6 +102,11 @@ class XLXC_BRIDGE
       exit
     end
 
+    path = options[:path]
+    if path == nil
+      puts("Specify path for node.")
+      exit
+    end
     # Check to make sure bridge exists, if deleting.
     if options[:delete] and !File.exists?(File.join(BRIDGES, bridge))
       puts("Cannot delete bridge #{bridge} because it does not exist.")
@@ -119,10 +126,10 @@ class XLXC_BRIDGE
 
   # Get CIDR address of Ethernet bridge.
   #
-  def self.get_bridge_cidr(bridge)
+  def self.get_bridge_cidr(bridge, path)
     cidr = nil
-    if File.exists?(File.join(BRIDGES, bridge, "cidr"))
-      open(File.join(BRIDGES, bridge, "cidr"), 'r') { |f|
+    if File.exists?(File.join(path, bridge, "cidr"))
+      open(File.join(path, bridge, "cidr"), 'r') { |f|
         cidr = NetAddr::CIDR.create(f.readline().strip())
       }
     end
@@ -131,10 +138,10 @@ class XLXC_BRIDGE
 
   # Get gateway interface of host for Ethernet bridge.
   #
-  def self.get_bridge_iface(bridge)
+  def self.get_bridge_iface(bridge, path)
     iface = nil
-    if File.exists?(File.join(BRIDGES, bridge, "iface"))
-      open(File.join(BRIDGES, bridge, "iface"), 'r') { |f|
+    if File.exists?(File.join(path, bridge, "iface"))
+      open(File.join(path, bridge, "iface"), 'r') { |f|
         iface = f.readline().strip()
       }
     end
@@ -143,10 +150,10 @@ class XLXC_BRIDGE
 
   # Get IP address of a container if it exists. 
   #
-  def self.get_ip_addr(name, bridge)
+  def self.get_ip_addr(name, bridge, path)
     addr = nil
-    if File.exists?(File.join(BRIDGES, bridge, "containers", name))
-      open(File.join(BRIDGES, bridge, "containers", name), 'r') { |f|
+    if File.exists?(File.join(path, bridge, "containers", name))
+      open(File.join(path, bridge, "containers", name), 'r') { |f|
         addr = f.readline().strip()
       }
     end
@@ -171,7 +178,7 @@ class XLXC_BRIDGE
   # Find a free CIDR block for this bridge.
   # TODO: lock the bridge file.
   #
-  def self.get_free_cidr_block(size)
+  def self.get_free_cidr_block(size, path)
     # Skip network address and gateway address.
     cidr_to_try = NetAddr::CIDR.create("10.0.0.0/24")
     cidr_size = 255
@@ -180,7 +187,7 @@ class XLXC_BRIDGE
       cidr_size = 65535
     end
 
-    bridges = Dir.entries(BRIDGES)
+    bridges = Dir.entries(path)
 
     for i in 1..cidr_size
       cidr_already_allocated = false
@@ -190,7 +197,7 @@ class XLXC_BRIDGE
         next if bridge == '.' or bridge == '..'
 
         existing_cidr = nil
-        open(File.join(BRIDGES, bridge, "cidr"), 'r') { |f|
+        open(File.join(path, bridge, "cidr"), 'r') { |f|
           existing_cidr = f.readline().strip()
         }
 
@@ -220,10 +227,10 @@ class XLXC_BRIDGE
   # Find a free IP address for this bridge.
   # TODO: lock the bridge file.
   #
-  def self.get_free_ip_address(name, bridge, cidr)
+  def self.get_free_ip_address(name, bridge, cidr, path)
     # Skip network address and gateway address.
     potential_addresses = cidr.range(2)
-    containers_dir = File.join(BRIDGES, bridge, "containers")
+    containers_dir = File.join(path, bridge, "containers")
     containers = Dir.entries(containers_dir)
 
     for address_to_try in potential_addresses
@@ -256,7 +263,7 @@ class XLXC_BRIDGE
   # Add the allocated IP address to the /etc/network/interfaces file
   # and document this address in the BRIDGES directory.
   #
-  def self.add_ip_address_to_container(name, bridge, cidr, address)
+  def self.add_ip_address_to_container(name, bridge, cidr, address, path)
     # Assume gateway address is at index 1 (second available address).
     gateway = cidr.nth(1)
     broadcast = cidr.last()
@@ -269,15 +276,15 @@ class XLXC_BRIDGE
         broadcast, gateway))
     }
 
-    `echo #{address} > #{File.join(BRIDGES, bridge, "containers", name)}`
+    `echo #{address} > #{File.join(path, bridge, "containers", name)}`
   end
 
   # Find a free IP address for this bridge and add it to the container.
   #
-  def self.alloc_ip_address_from_bridge(name, bridge)
-    cidr = get_bridge_cidr(bridge)
-    address = get_free_ip_address(name, bridge, cidr)
-    add_ip_address_to_container(name, bridge, cidr, address)
+  def self.alloc_ip_address_from_bridge(name, bridge, path)
+    cidr = get_bridge_cidr(bridge, path)
+    address = get_free_ip_address(name, bridge, cidr, path)
+    add_ip_address_to_container(name, bridge, cidr, address, path)
   end
 
   # Add bridge interface using bridge-utils.
@@ -301,7 +308,7 @@ class XLXC_BRIDGE
     bridge = options[:bridge]
     gateway_iface = options[:iface]
     path = options[:path]
-
+    puts bridge
     cidr = NetAddr::CIDR.create(options[:cidr])
 
     add_interface(bridge, cidr, gateway_iface)
