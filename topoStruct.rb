@@ -115,13 +115,16 @@ end
 
 class Topo
   "Data center network representation for structured multi-trees."
+  attr_reader :graph
   def initialize(*args)
     """Topo object
        calls build()"""
     @graph = Graph.new()
     # ports[src][dst][sport] is port on dst that connects to src
     @ports = {}
-    build( *args)
+    build(*args)
+    assignDepth()
+    #printGraph()
   end  
 
   def build( *args)
@@ -273,7 +276,3 @@ class TreeTopo < Topo
     return node
   end  
 end    
-
-buildtopo = TreeTopo.new(3,2)
-buildtopo.assignDepth()
-buildtopo.printGraph

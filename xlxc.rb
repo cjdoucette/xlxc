@@ -3,7 +3,14 @@
 #
 # Author: Cody Doucette <doucette@bu.edu>
 #
-
+require 'fileutils'
+require 'optparse'
+require 'rubygems'
+require 'netaddr'
+require 'ipaddr'
+require './xlxc'
+require './xlxc-bridge'
+require './topoStruct'
 
 class XLXC
 

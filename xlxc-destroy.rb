@@ -28,6 +28,10 @@ def parse_opts()
       options[:name] = name
     end
 
+    options[:path] = nil
+    opts.on('-p', '--path ARG', 'Path of Container') do |path|
+      options[:path] = path
+
   end
 
   optparse.parse!
@@ -49,6 +53,13 @@ def check_for_errors(options)
     puts("Specify name for container.")
     exit
   end
+
+  path = options[:path]
+  if path == nil
+    puts("Specify path for container.")
+    exit
+  end
+
 end
 
 # Destroy a container filesystem by removing bind mounts.
@@ -63,6 +74,7 @@ end
 #
 def destroy(options)
   name = options[:name]
+  path = options[:path]
 
   # Stop the container if it is still running.
   `lxc-stop -n #{name} --kill`
@@ -75,8 +87,8 @@ def destroy(options)
   destroy_fs(File.join(XLXC::LXC, name, "rootfs"))
 
   `rm -rf #{File.join(XLXC::LXC, name)}`
-  if File.exists?(File.join(XLXC_BRIDGE::BRIDGES, bridge, "containers", name))
-    `rm #{File.join(XLXC_BRIDGE::BRIDGES, bridge, "containers", name)}`
+  if File.exists?(File.join(path, "containers", name))
+    `rm #{File.join(path, "containers", name)}`
   end
 end
 

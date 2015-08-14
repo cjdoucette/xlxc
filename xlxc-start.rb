@@ -34,6 +34,11 @@ def parse_opts()
       options[:name] = name
     end
 
+    options[:path] = nil
+    opts.on('-p', '--path ARG', 'Path of container') do |path|
+      options[:path] = path
+    end
+
   end
 
   optparse.parse!
@@ -63,7 +68,8 @@ end
 #
 def start_container(options)
   name = options[:name]
-  XLXC.setup_net(name)
+  path = options[:path]
+  XLXC.setup_net(name, path)
   XLXC.setup_fs(name)
   if options[:daemon]
     `lxc-start -n #{name} -d`

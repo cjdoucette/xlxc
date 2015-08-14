@@ -732,24 +732,25 @@ end
   
 class Host < Node 
   
-  @@addedSwitch=false
   def create()
     `ruby xlxc-create.rb -n #{@name} --script`
+    config()
+  end
+
+  def config()
     ContainerCreate.config_container(@name, @parent)
   end
-
-  def addCSwitch(switch)
-    if !File.exist?(File.join(XLXC_BRIDGE::BRIDGES, switch))
-      puts("switch #{switch} does not exist.")
-      exit
-    end
-    @@addedSwitch=true
+    
+  def start()
+    `ruby xlxc-start.rb -n #{@name} -p #{@path} --daemon`
   end
 
-  def self.addedSwitch()
-    return @@addedSwitch
-  end  
+  def stop()
+    `ruby xlxc-stop.rb -n #{@name} -p #{@path}`
+  end
 
-end    
-params={}
-#vrn = Node.new('vrn',params) 
+  def destroy()
+    `ruby xlxc-stop.rb -n #{@name} -p #{@path}`
+  end
+
+end

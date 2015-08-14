@@ -4,7 +4,7 @@ require 'io/console'
 require './switch.rb'
 require './topoStruct'
 
-class NetworkCreate
+class Network
   
   attr_reader :topo
   attr_reader :nameToNode
@@ -19,7 +19,7 @@ class NetworkCreate
     @slinks = []
     @nameToNode = {}  # name to Node (Host/Switch) objects
     build()
-  
+    create()
   end
 
   def build()
@@ -60,13 +60,13 @@ class NetworkCreate
     return names
   end
 
-  def get( *args ):
+  def get( *args )
     return getNodeByName(*args)
   end       
   
   def addHost(name, *args)
-    parent = topo.graph.node[name].fetch['parent']
-    path = topo.graph.node[name].fetch['path']
+    parent = topo.graph.node[name].fetch('parent')
+    path = topo.graph.node[name].fetch('path')
     h = Host.new(name, parent, path)
     @hosts.push(h)
     @nameToNode[name] = h
@@ -74,9 +74,10 @@ class NetworkCreate
   end
 
   def addSwitch(name, *args)
-    parent = topo.graph.node[name].fetch['parent']
-    path = topo.graph.node[name].fetch['parent']
-    s = Switch.new(name, parent, path)
+
+    parent = topo.graph.node[name].fetch('parent')
+    path = topo.graph.node[name].fetch('path')
+    s = OVSSwitch.new(name, parent, path)
     @switches.push(s)
     @nameToNode[name] = s
     return s
@@ -112,16 +113,33 @@ class NetworkCreate
   def addHsLinks(host, switch)
     l = link( node1, node2, *options )
     @hslinks.push(l)
-    host.addCSwitch(switch)
     return l
   end
 
-  def configure()
+  def create()
+    for switch in @switches
+      switch.create()
+    end
 
+    for host in @hosts
+      host.create()
+    end  
   end
   
   def start()
+    for host in @hosts
+      host.start()
+    end
+  end
+
+  def stop()
+    for host in @hosts
+      host.stop()
+    end
   end  
   
 end
 
+$mynet = Network.new(TreeTopo.new(3,2))
+$mynet.start() 
+#$mynet = Network.new() 

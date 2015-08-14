@@ -7,9 +7,9 @@ class OVSSwitch < Node
   "OVSBridge is an OVSSwitch in standalone/bridge mode"
   @@portBase = 1 
 
-  def initialize(name, parent, path *args)
+  def initialize(name, parent, path, cidr = '192.168.10.0/24', *args)
     super( name, parent, path, args )
-    @cidr = nil     
+    @cidr = cidr    
   end  
 
   def create()
@@ -114,12 +114,3 @@ class OVSSwitch < Node
   end 
 
 end
-
-ovs=OVSSwitch.new('mybridge')
-ovs.create()
-ovs.addIntf('intf1')
-ovs.addIntf('intf2')
-ovs.attachAll()
-puts ovs.intfNames
-puts ovs.portNumbers
-assert 

@@ -14,6 +14,7 @@ require 'netaddr'
 require 'ipaddr'
 require './xlxc'
 require './xlxc-bridge'
+require './topoStruct'
 
 class ContainerCreate
   # Directories that need to be directly copied.
@@ -159,8 +160,7 @@ class ContainerCreate
     # Set up container config file.
     open(config, 'w') { |f|
       f.puts(XLXC::LXC_CONFIG_TEMPLATE)
-      f.puts("lxc.network.link=#{bridge}\n"                       \
-             "lxc.network.veth.pair=#{name}veth\n"                \
+      f.puts("lxc.network.veth.pair=#{name}veth\n"                \
              "lxc.rootfs=#{rootfs}\n"                             \
              "lxc.utsname=#{name}\n"                              \
              "lxc.mount=#{fstab}")
