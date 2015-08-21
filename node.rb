@@ -474,10 +474,7 @@ class Node
     @intfs[port] = intf
     @ports[intf] = port
     @nameToIntf[intf.name] = intf
-    debug('\n')
-    debug('added intf %s (%d) to node %s\n' % [intf, port, @name ])
     if @inNamespace
-      debug('moving', intf, 'into namespace for', @name, '\n')
       moveIntfFn(intf.name, self)
     end
   end    
