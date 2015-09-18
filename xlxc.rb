@@ -3,7 +3,14 @@
 #
 # Author: Cody Doucette <doucette@bu.edu>
 #
-
+require 'fileutils'
+require 'optparse'
+require 'rubygems'
+require 'netaddr'
+require 'ipaddr'
+require './xlxc'
+require './xlxc-bridge'
+require './topoStruct'
 
 class XLXC
 
@@ -38,10 +45,10 @@ class XLXC
   # Set up the network for this bridge. This involves re-creating the
   # Ethernet bridge (if necessary) and allocating an IP address.
   #
-  def self.setup_net(name)
+  def self.setup_net(name, path)
     bridge = XLXC_BRIDGE.get_bridge(name)
-    cidr = XLXC_BRIDGE.get_bridge_cidr(bridge)
-    iface = XLXC_BRIDGE.get_bridge_iface(bridge)
+    cidr = XLXC_BRIDGE.get_bridge_cidr(bridge, path)
+    iface = XLXC_BRIDGE.get_bridge_iface(bridge, path)
 
     # If this interface is not up, create it.
     interfaces = Dir.entries(XLXC_BRIDGE::INTERFACES)
@@ -49,8 +56,8 @@ class XLXC
       XLXC_BRIDGE.add_interface(bridge, cidr, iface)
     end
 
-    if XLXC_BRIDGE.get_ip_addr(name, bridge) == nil
-      XLXC_BRIDGE.alloc_ip_address_from_bridge(name, bridge)
+    if XLXC_BRIDGE.get_ip_addr(name, bridge, path) == nil
+      XLXC_BRIDGE.alloc_ip_address_from_bridge(name, bridge, path)
     end
   end
 
@@ -62,7 +69,7 @@ class XLXC
     # Bind mount (read-only) directories from host.
     for dir in BIND_MOUNTED_DIRECTORIES
       if !Dir.exists?(File.join(rootfs, dir)) ||
-         Dir.entries(File.join(rootfs, dir)).size() <= 2
+        Dir.entries(File.join(rootfs, dir)).size() <= 2
         bind_mount(dir, File.join(rootfs, dir), true, true)
       end
     end

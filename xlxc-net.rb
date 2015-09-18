@@ -216,6 +216,9 @@ def create_star_network(name, size, iface, use_script)
   end
 end
 
+# Creates a tree network of Linux XIA containers, where each
+# container is on a separate Ethernet bridge.
+
 # Destroys a connected network of Linux XIA containrs, where each
 # container is on the same Ethernet bridge.
 #
@@ -227,6 +230,7 @@ def destroy_connected_network(name, size)
   `ruby xlxc-bridge.rb -b #{bridge} --del`
 end
 
+
 # Destroys a star network of Linux XIA containers, where each
 # container is on a separate Ethernet bridge.
 #
@@ -237,6 +241,7 @@ def destroy_star_network(name, size)
     `ruby xlxc-bridge.rb -b #{bridge} --del`
   end
 end
+
 
 # Starts a network of Linux XIA containers.
 #

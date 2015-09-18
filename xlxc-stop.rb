@@ -28,6 +28,10 @@ def parse_opts()
       options[:name] = name
     end
 
+    options[:path] = nil
+    opts.on('-p', '--path ARG', 'Path of Container') do |path|
+      options[:path] = path
+    end
   end
 
   optparse.parse!
@@ -45,19 +49,26 @@ def check_for_errors(options)
 
   # Check that there are no conflicts with the container name.
   name = options[:name]
-
   if name == nil
     puts("Specify name for container using -n or --name.")
     exit
   end
+
+  path = options[:path]
+  if path == nil
+    puts("Specify path for container.")
+    exit
+  end
+
 end
 
 # Remove the IP address for this container and stop it.
 #
 def stop_container(options)
   name = options[:name]
+  path = options[:path]
   bridge = XLXC_BRIDGE.get_bridge(name)
-  `rm #{File.join(XLXC_BRIDGE::BRIDGES, bridge, "containers", name)}`
+  `rm #{File.join(path,  "containers", name)}`
   `lxc-stop -n #{name} --kill`
 end
 
