@@ -1,9 +1,55 @@
+require 'optparse'
+require './xlxc'
+require './xlxc-bridge'
 require 'pty'
 require 'fileutils'
 require 'io/console'
 require './switch.rb'
 require './topoStruct'
  
+
+
+USAGE =
+  "\nUsage:"                                                               \
+  "\truby network.rb -n name -s size --create -t topology [OPTIONS]"      \
+  "\n\tOR\n"                                                               \
+  "\truby network.rb -n name -s size --start"                             \
+  "\n\tOR\n"                                                               \
+  "\truby network.rb -n name -s size --execute -- command\n\n"            \
+
+def parse_opts()
+  options = {}
+
+  optparse = OptionParser.new do |opts|
+    opts.banner = USAGE
+
+
+    options[:start] = false
+    opts.on('-a', '--start', 'Start containers in this network') do
+      options[:start] = true
+    end
+
+    options[:create] = false
+    opts.on('-c', '--create', 'Create this container network') do
+      options[:create] = true
+    end
+
+    options[:name] = nil
+    opts.on('-n', '--name ARG', 'Network naming scheme') do |name|
+      options[:name] = name
+    end
+
+    options[:topology] = nil
+    opts.on('-t', '--topology ARG', 'Topology of network') do |top|
+      options[:topology] = top
+    end
+  end
+
+  optparse.parse!
+  return options
+end
+
+
 class Network
   
   attr_reader :topo
@@ -140,6 +186,61 @@ class Network
   
 end
 
-$mynet = Network.new(TreeTopo.new(3,2))
-$mynet.start() 
-#$mynet = Network.new() 
+
+def check_for_errors(options)
+  # Check that user is root.
+  if Process.uid != 0
+    puts("xlxc-net.rb must be run as root.")
+    exit
+  end
+
+  name = options[:name]
+  if name == nil
+    puts("Specify name for container using -n or --name.")
+    exit
+  end
+
+  count = 0
+  if options[:create]
+    count += 1
+  end
+
+  if options[:start]
+    count += 1
+  end
+
+  if count < 1 or count > 1
+    puts("Must use one of: --create, --start, --execute.")
+    exit
+  end
+
+  # Check that topology is valid.
+  topology = options[:topology]
+  if (options[:create] or options[:destroy]) and 
+     (topology != "singleSwitch" and topology!="tree")
+    puts("Must indicate topology with either \"star\" or \"connected\".")
+    exit
+  end
+end
+
+if __FILE__ == $PROGRAM_NAME
+  options = parse_opts()
+  check_for_errors(options)
+
+  create = options[:create]
+  start = options[:start]
+  topology = options[:topology]
+
+  if create
+    if topology == "singleSwitch"
+      name = Network.new(SingleSwitchTopo.new)
+    elsif topology == "tree"
+      name = Network.new(TreeTopo.new(3,2))  
+    else
+      raise("No option chosen.")
+    end
+  elsif start
+    name = Network.new()
+    name.start() 
+  end
+end

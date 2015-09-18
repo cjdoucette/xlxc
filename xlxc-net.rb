@@ -139,7 +139,7 @@ def check_for_errors(options)
   # Check that topology is valid.
   topology = options[:topology]
   if (options[:create] or options[:destroy]) and 
-     (topology != "star" and topology != "connected" and topology!="tree")
+     (topology != "star" and topology != "connected")
     puts("Must indicate topology with either \"star\" or \"connected\".")
     exit
   end
@@ -219,48 +219,6 @@ end
 # Creates a tree network of Linux XIA containers, where each
 # container is on a separate Ethernet bridge.
 
-def create_tree_network(name, size, iface, use_script, branches=2)
-  # Numbering:  h1..N, s1..M
-  #self.hostNum = 1
-  #self.switchNum = 1
-  # Build topology
-  depth = 1
-  while size>0
-    size = size/branches
-    depth = depth+1
-  end
-  h = 0
-  bridge = name + h.to_s + "br"
-  cidr_str = XLXC_BRIDGE.get_free_cidr_block(size).to_s()
-  addTree( name, size, iface, use_script, h, depth, branches, bridge, cidr_str )
-end
-    
-def addTree( name, size, iface, use_script, h, depth, branches,bridge, cidr_str )
-  """Add a subtree starting with node n.
-  returns: last node added"""
-  isSwitch = depth > 0
-  if isSwitch    
-    if use_script
-      `ruby xlxc-bridge.rb -b #{bridge} --iface #{iface} --cidr #{cidr_str}`
-    else
-      `ruby xlxc-bridge.rb -b #{bridge} --cidr #{cidr_str}`
-    end
-    
-    for i in 0..(branches - 1)
-      bridge = name + h.to_s + "br" + i.to_s
-      cidr_str = XLXC_BRIDGE.get_free_cidr_block(size).to_s()
-      addTree( name, size, iface, use_script, h+1, depth-1, branches, bridge, cidr_str )        #self.switchNum += 1
-    end
-  else
-    if use_script
-      `ruby xlxc-create.rb -n #{name + h.to_s() + "nd"} -b #{bridge} --script`
-    else
-      `ruby xlxc-create.rb -n #{name + h.to_s() + "nd"} -b #{bridge}`
-    end
-      #self.hostNum += 1
-  end            
-end
-
 # Destroys a connected network of Linux XIA containrs, where each
 # container is on the same Ethernet bridge.
 #
@@ -284,14 +242,6 @@ def destroy_star_network(name, size)
   end
 end
 
-def destroy_tree_network(name, size)
-  if 
-  bridge = name + "br"
-  for i in 0..(size - 1)
-    `ruby xlxc-destroy.rb -n #{name + i.to_s()}`
-  end
-  `ruby xlxc-bridge.rb -b #{bridge} --del`
-end
 
 # Starts a network of Linux XIA containers.
 #
@@ -339,8 +289,6 @@ if __FILE__ == $PROGRAM_NAME
       create_connected_network(name, size, iface, script)
     elsif topology == "star"
       create_star_network(name, size, iface, script)
-    elsif topology == "tree"
-      create_tree_network(name, size, iface, script)  
     else
       raise("No option chosen.")
     end

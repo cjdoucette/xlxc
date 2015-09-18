@@ -32,7 +32,7 @@ class Intf
   "Basic interface object that can configure itself."
 
   def initialize( name, node=nil, port=nil, link=nil,
-          mac=nil, **params )
+          mac=nil, *params )
     """name: interface name (e.g. h1-eth0)
        node: owning node (where this intf most likely lives)
        link: parent link if we're part of a link
