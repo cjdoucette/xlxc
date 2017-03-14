@@ -112,6 +112,8 @@ lxc.cgroup.devices.allow = c 10:228 rwm
 #kvm
 lxc.cgroup.devices.allow = c 10:232 rwm
 lxc.arch=amd64
+
+lxc.aa_allow_incomplete = 1
 "
 
   # Data to be entered into each container's fstab file.
