@@ -3,9 +3,10 @@
 # Author: Jamie Strandboge <jamie@canonical.com>
 #include <tunables/global>
 
-/sbin/dhclient {
+/sbin/dhclient flags=(attach_disconnected) {
   #include <abstractions/base>
   #include <abstractions/nameservice>
+  #include <abstractions/openssl>
 
   capability net_bind_service,
   capability net_raw,
@@ -36,6 +37,8 @@
   /{,var/}run/sendsigs.omit.d/network-manager.dhclient*.pid lrw,
   /var/lib/NetworkManager/dhclient*.conf lrw,
   /var/lib/NetworkManager/dhclient*.lease* lrw,
+  signal (receive) peer=/usr/sbin/NetworkManager,
+  ptrace (readby) peer=/usr/sbin/NetworkManager,
 
   # connman
   /{,var/}run/connman/dhclient*.pid lrw,
@@ -60,6 +63,10 @@
   /usr/lib/NetworkManager/nm-dhcp-client.action   Pxrm,
   /usr/lib/connman/scripts/dhclient-script        Pxrm,
 
+  # Support the new executable helper from NetworkManager.
+  /usr/lib/NetworkManager/nm-dhcp-helper          Pxrm,
+  signal (receive) peer=/usr/lib/NetworkManager/nm-dhcp-helper,
+
   # Site-specific additions and overrides. See local/README for details.
   #include <local/sbin.dhclient>
 }
@@ -70,11 +77,32 @@
   /usr/lib/NetworkManager/nm-dhcp-client.action mr,
 
   /var/lib/NetworkManager/*lease r,
+  signal (receive) peer=/usr/sbin/NetworkManager,
+  ptrace (readby) peer=/usr/sbin/NetworkManager,
+  network inet dgram,
+  network inet6 dgram,
+}
+
+/usr/lib/NetworkManager/nm-dhcp-helper {
+  #include <abstractions/base>
+  #include <abstractions/dbus>
+  /usr/lib/NetworkManager/nm-dhcp-helper mr,
+
+  /run/NetworkManager/private-dhcp rw,
+  signal (send) peer=/sbin/dhclient,
+
+  /var/lib/NetworkManager/*lease r,
+  signal (receive) peer=/usr/sbin/NetworkManager,
+  ptrace (readby) peer=/usr/sbin/NetworkManager,
+  network inet dgram,
+  network inet6 dgram,
 }
 
 /usr/lib/connman/scripts/dhclient-script {
   #include <abstractions/base>
   #include <abstractions/dbus>
   /usr/lib/connman/scripts/dhclient-script      mr,
+  network inet dgram,
+  network inet6 dgram,
 }
 

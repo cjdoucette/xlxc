@@ -1,0 +1,249 @@
+# Subscription configuration file for CUPS v2.1.3
+# Written by cupsd
+NextSubscriptionId 34
+<Subscription 2>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489547231
+NextEventId 38
+</Subscription>
+<Subscription 3>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489547486
+NextEventId 36
+</Subscription>
+<Subscription 4>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489553109
+NextEventId 34
+</Subscription>
+<Subscription 5>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489593658
+NextEventId 31
+</Subscription>
+<Subscription 6>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489595329
+NextEventId 29
+</Subscription>
+<Subscription 7>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489595548
+NextEventId 27
+</Subscription>
+<Subscription 8>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489595681
+NextEventId 25
+</Subscription>
+<Subscription 9>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489596441
+NextEventId 22
+</Subscription>
+<Subscription 10>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489596953
+NextEventId 19
+</Subscription>
+<Subscription 11>
+Events printer-changed
+Owner root
+LeaseDuration 86400
+Interval 60
+ExpirationTime 1489610151
+NextEventId 1
+</Subscription>
+<Subscription 12>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489610151
+NextEventId 16
+</Subscription>
+<Subscription 15>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489610888
+NextEventId 13
+</Subscription>
+<Subscription 16>
+Events printer-changed
+Owner root
+LeaseDuration 86400
+Interval 60
+ExpirationTime 1489610956
+NextEventId 1
+</Subscription>
+<Subscription 17>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489610956
+NextEventId 11
+</Subscription>
+<Subscription 18>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489610959
+NextEventId 11
+</Subscription>
+<Subscription 19>
+Events printer-changed
+Owner root
+LeaseDuration 86400
+Interval 60
+ExpirationTime 1489616248
+NextEventId 1
+</Subscription>
+<Subscription 20>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489616248
+NextEventId 9
+</Subscription>
+<Subscription 21>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489616252
+NextEventId 9
+</Subscription>
+<Subscription 24>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489617388
+NextEventId 7
+</Subscription>
+<Subscription 25>
+Events printer-changed
+Owner root
+LeaseDuration 86400
+Interval 60
+ExpirationTime 1489617659
+NextEventId 1
+</Subscription>
+<Subscription 26>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489617659
+NextEventId 5
+</Subscription>
+<Subscription 27>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489617663
+NextEventId 5
+</Subscription>
+<Subscription 28>
+Events printer-changed
+Owner root
+LeaseDuration 86400
+Interval 60
+ExpirationTime 1489618567
+NextEventId 1
+</Subscription>
+<Subscription 29>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489618567
+NextEventId 3
+</Subscription>
+<Subscription 30>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489618571
+NextEventId 3
+</Subscription>
+<Subscription 31>
+Events printer-changed
+Owner root
+LeaseDuration 86400
+Interval 60
+ExpirationTime 1489620129
+NextEventId 1
+</Subscription>
+<Subscription 32>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489620129
+NextEventId 1
+</Subscription>
+<Subscription 33>
+Events all
+Owner anonymous
+Recipient dbus://
+LeaseDuration 86400
+Interval 0
+ExpirationTime 1489620132
+NextEventId 1
+</Subscription>

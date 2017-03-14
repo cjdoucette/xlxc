@@ -152,27 +152,9 @@ mv -f "$TMPFILE" "$DYNAMICRSLVCNFFILE"
 # symlinked to the file we have just updated.
 resolv_conf_is_symlinked_to_dynamic_file || exit 0
 
-# Restart nscd
-NSCD_RESTARTED=""
-NSCD_PIDFILE=""
-[ -s /var/run/nscd.pid ] && NSCD_PIDFILE="/var/run/nscd.pid"
-[ -s /var/run/nscd/nscd.pid ] && NSCD_PIDFILE="/var/run/nscd/nscd.pid"
-if \
-	[ "$NSCD_PIDFILE" ] \
-	&& [ -x /usr/sbin/nscd ] \
-	&& [ -x /etc/init.d/nscd ] \
-	&& [ -s /etc/nscd.conf ] \
-	&& grep -q '[[:space:]]*enable-cache[[:space:]]\+hosts[[:space:]]\+yes' /etc/nscd.conf \
-	&& start-stop-daemon --stop --quiet --pidfile="$NSCD_PIDFILE" --exec /usr/sbin/nscd --retry=TERM/3/HUP/5 \
-	&& start-stop-daemon --stop --quiet --oknodo --exec /usr/sbin/nscd --retry=0/5
-then
-	echo "Stopped Name Service Cache Daemon: nscd."
-	/etc/init.d/nscd start && { sleep 0.1 ; NSCD_RESTARTED=yes ; }
-fi
-
 # Notify users of the resolver
 if [ -d "${ETCRESOLVCONF}/update-libc.d" ] ; then
-	exec run-parts ${NSCD_RESTARTED:+--arg="--nscd"} "${ETCRESOLVCONF}/update-libc.d"
+	exec run-parts "${ETCRESOLVCONF}/update-libc.d"
 fi
 
 exit 0

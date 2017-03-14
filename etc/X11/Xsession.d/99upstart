@@ -1,7 +1,7 @@
 # Start the user session
 if [ -n "$UPSTART" ]; then
     case "$BASESESSION" in
-        gnome-session*)
+        gnome-session*|gnome-flashback*)
             export SESSIONTYPE=gnome-session
             ;;
         lxsession*)
@@ -9,6 +9,6 @@ if [ -n "$UPSTART" ]; then
             ;;
     esac
 
-    STARTUP="init --user"
+    STARTUP="/sbin/upstart --user"
     unset UPSTART
 fi

@@ -384,6 +384,7 @@ postgresql	5432/tcp	postgres	# PostgreSQL Database
 postgresql	5432/udp	postgres
 freeciv		5556/tcp	rptp		# Freeciv gameplay
 freeciv		5556/udp
+amqps		5671/tcp			# AMQP protocol over TLS/SSL
 amqp		5672/tcp
 amqp		5672/udp
 amqp		5672/sctp

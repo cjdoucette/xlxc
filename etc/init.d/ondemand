@@ -17,6 +17,7 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 . /lib/lsb/init-functions
 
 AVAILABLE="/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors"
+DOWN_FACTOR="/sys/devices/system/cpu/cpufreq/ondemand/sampling_down_factor"
 
 case "$1" in
     start)
@@ -34,6 +35,15 @@ case "$1" in
 			;;
 		*ondemand*)
 			GOVERNOR="ondemand"
+			case $(uname -m) in
+				ppc64*)
+					SAMPLING=100
+				;;
+			esac
+			break
+			;;
+		*powersave*)
+			GOVERNOR="powersave"
 			break
 			;;
 		*)
@@ -46,6 +56,9 @@ case "$1" in
 		[ -f $CPUFREQ ] || continue
 		echo -n $GOVERNOR > $CPUFREQ
 	done
+	if [ -n "$SAMPLING" ] && [ -f $DOWN_FACTOR ]; then
+		echo -n $SAMPLING > $DOWN_FACTOR
+	fi
 	;;
     restart|reload|force-reload)
         echo "Error: argument '$1' not supported" >&2

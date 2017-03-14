@@ -38,7 +38,13 @@
 # screen blanking timeout.  monitor remains on, but the screen is cleared to
 # range: 0-60 min (0==never)  kernels I've looked at default to 10 minutes.
 # (see linux/drivers/char/console.c)
-BLANK_TIME=30
+# This is set to zero to avoid blanking the screen, because if a crash occurs
+# it can conceal the output. On systems running with a graphical desktop, X
+# is responsible for dpms settings, so this will not affect systems running
+# graphically, and it makes more since for a non graphical system to not blank
+# the screen automatically as most non graphical systems are headless unless
+# a monitor has been attached for debugging
+BLANK_TIME=0
 
 # blanking method (VESA DPMS mode to use after BLANK_TIME, before powerdown):
 # on: the default, no DPMS signalling. near instant powerup, no power saving

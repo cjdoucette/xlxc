@@ -12,13 +12,5 @@ case "$ADDRFAM" in
   *)          exit 0 ;;
 esac
 
-case "$METHOD" in
-  dhcp)
-	# Delete record left behind by TERMinated udhcpc
-	# This works around bug #605215
-	/sbin/resolvconf -d "${IFACE}.udhcpc" || :
-	;;
-esac
-
 /sbin/resolvconf -d "${IFACE}.${ADDRFAM}" || :
 

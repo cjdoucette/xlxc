@@ -3,6 +3,8 @@
 version="$1"
 bootopt=""
 
+[ -x /usr/sbin/update-initramfs ] || exit 0
+
 # passing the kernel version is required
 if [ -z "${version}" ]; then
 	echo >&2 "W: initramfs-tools: ${DPKG_MAINTSCRIPT_PACKAGE:-kernel package} did not pass a version number"
@@ -10,7 +12,7 @@ if [ -z "${version}" ]; then
 fi
 
 # exit if custom kernel does not need an initramfs
-if [ -n "${KERNEL_PACKAGE_VERSION}" ] && [ "$INITRD" = 'No' ]; then
+if [ "$INITRD" = 'No' ]; then
 	exit 0
 fi
 

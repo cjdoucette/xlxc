@@ -13,7 +13,7 @@
 [ "$USEPEERDNS" ] || exit 0
 
 case "$6" in
-  nm-pptp-service-*|/org/freedesktop/NetworkManager/PPP/*)
+  nm-pptp-service-*|nm-l2tp-service-*|/org/freedesktop/NetworkManager/PPP/*)
 	# NetworkManager handles it
 	exit 0
 	;;

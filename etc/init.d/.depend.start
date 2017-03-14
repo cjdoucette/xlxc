@@ -1,0 +1,26 @@
+TARGETS = rsyslog cgmanager uuidd vboxadd dns-clean killprocs apport lxcfs speech-dispatcher dbus thermald rsync kerneloops cgproxy irqbalance whoopsie single cron acpid anacron lightdm avahi-daemon bluetooth vboxadd-service vboxadd-x11 cups-browsed cups saned plymouth grub-common ondemand rc.local
+INTERACTIVE =
+speech-dispatcher: rsyslog
+dbus: rsyslog
+thermald: rsyslog
+rsync: rsyslog
+kerneloops: rsyslog
+cgproxy: cgmanager
+irqbalance: rsyslog
+whoopsie: rsyslog
+single: killprocs dns-clean
+cron: rsyslog
+acpid: rsyslog
+anacron: rsyslog
+lightdm: dbus acpid
+avahi-daemon: dbus rsyslog
+bluetooth: rsyslog dbus
+vboxadd-service: rsyslog
+vboxadd-x11: rsyslog
+cups-browsed: rsyslog
+cups: rsyslog
+saned: rsyslog dbus
+plymouth: speech-dispatcher rsyslog lightdm dbus cups-browsed thermald avahi-daemon cgmanager rsync bluetooth vboxadd-service vboxadd-x11 uuidd kerneloops vboxadd cgproxy irqbalance dns-clean cups whoopsie saned apport cron acpid anacron lxcfs
+grub-common: speech-dispatcher rsyslog lightdm dbus cups-browsed thermald avahi-daemon cgmanager rsync bluetooth vboxadd-service vboxadd-x11 uuidd kerneloops vboxadd cgproxy irqbalance dns-clean cups whoopsie saned apport cron acpid anacron lxcfs
+ondemand: speech-dispatcher rsyslog lightdm dbus cups-browsed thermald avahi-daemon cgmanager rsync bluetooth vboxadd-service vboxadd-x11 uuidd kerneloops vboxadd cgproxy irqbalance dns-clean cups whoopsie saned apport cron acpid anacron lxcfs
+rc.local: speech-dispatcher rsyslog lightdm dbus cups-browsed thermald avahi-daemon cgmanager rsync bluetooth vboxadd-service vboxadd-x11 uuidd kerneloops vboxadd cgproxy irqbalance dns-clean cups whoopsie saned apport cron acpid anacron lxcfs

@@ -1,0 +1,11 @@
+TARGETS = unattended-upgrades cgmanager uuidd vboxadd lxcfs speech-dispatcher thermald alsa-utils resolvconf rsync kerneloops cgproxy irqbalance ufw whoopsie lightdm bluetooth vboxadd-service vboxadd-x11 cups-browsed cups saned plymouth urandom avahi-daemon sendsigs rsyslog umountnfs.sh hwclock.sh networking umountfs umountroot halt reboot
+avahi-daemon: cups-browsed saned
+sendsigs: speech-dispatcher unattended-upgrades lightdm cups-browsed thermald avahi-daemon plymouth alsa-utils rsync bluetooth vboxadd-service vboxadd-x11 uuidd kerneloops irqbalance lxcfs
+rsyslog: speech-dispatcher cups-browsed thermald avahi-daemon rsync bluetooth vboxadd-service vboxadd-x11 sendsigs kerneloops irqbalance cups whoopsie saned
+umountnfs.sh: speech-dispatcher unattended-upgrades lightdm cups-browsed thermald avahi-daemon plymouth alsa-utils sendsigs rsync bluetooth vboxadd-service vboxadd-x11 rsyslog uuidd kerneloops irqbalance lxcfs
+hwclock.sh: cups-browsed rsyslog uuidd kerneloops
+networking: lightdm cups-browsed umountnfs.sh kerneloops
+umountfs: speech-dispatcher unattended-upgrades lightdm cups-browsed thermald avahi-daemon plymouth alsa-utils resolvconf rsync bluetooth vboxadd-service vboxadd-x11 uuidd umountnfs.sh kerneloops hwclock.sh networking urandom irqbalance lxcfs
+umountroot: umountfs
+halt: umountroot
+reboot: umountroot

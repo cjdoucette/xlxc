@@ -69,7 +69,9 @@ fi
 # insserv package to be enabled. Boot concurrency also requires
 # startpar to be installed.
 #
-CONCURRENCY=makefile
+#CONCURRENCY=makefile
+# disable startpar, incompatible with "task" upstart jobs
+CONCURRENCY=none
 test -s /etc/init.d/.depend.boot  || CONCURRENCY="none"
 test -s /etc/init.d/.depend.start || CONCURRENCY="none"
 test -s /etc/init.d/.depend.stop  || CONCURRENCY="none"
@@ -77,12 +79,19 @@ if test -e /etc/init.d/.legacy-bootordering ; then
 	CONCURRENCY="none"
 fi
 if ! test -e /proc/stat; then
+	# startpar requires /proc/stat
 	if [ "$(uname)" = "GNU/kFreeBSD" ] ; then
-		# startpar requires /proc/stat
 		mount -t linprocfs linprocfs /proc
+	elif [ "$(uname)" = "GNU" ] ; then
+		mount -t proc none /proc
 	fi
 fi
-startpar -v > /dev/null 2>&1 || CONCURRENCY="none"
+if [ -x /lib/startpar/startpar ] ; then
+    STARTPAR=/lib/startpar/startpar
+else
+    STARTPAR=startpar
+fi
+$STARTPAR -v > /dev/null 2>&1 || CONCURRENCY="none"
 
 #
 # Start script or program.
@@ -92,7 +101,7 @@ case "$CONCURRENCY" in
 		CONCURRENCY=makefile
 		log_action_msg "Using makefile-style concurrent boot in runlevel $runlevel"
 		startup() {
-			eval "$(startpar -p 4 -t 20 -T 3 -M $1 -P $previous -R $runlevel)"
+			eval "$($STARTPAR -p 4 -t 20 -T 3 -M $1 -P $previous -R $runlevel)"
 
 			if [ -n "$failed_service" ]
 			then
